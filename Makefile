@@ -1,6 +1,11 @@
-NAME=untitled
-CFLAGS=-Wall -Wextra -O2 -lSDL2
+NAME=voxel_sidescroller
+CFLAGS=-Wall -Wextra -O2 -lSDL2 -lm
 CC=gcc
 
-$(NAME): main.c
+.PHONY: clean
+
+$(NAME): main.c exit.c render.c world.c
 	$(CC) -o $@ $(CFLAGS) $^
+
+clean:
+	rm $(NAME) *.o
