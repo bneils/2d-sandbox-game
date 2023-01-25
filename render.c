@@ -1,6 +1,5 @@
 #include <SDL2/SDL.h>
 #include <math.h>
-#include <stdio.h> // TODO: Remove
 
 #include "render.h"
 #include "world.h"
@@ -21,10 +20,11 @@ static SDL_Surface *tile_surfaces[ARRAY_LEN(tile_filenames)];
 
 extern SDL_Surface *g_surface;
 
+/* `chunk_draw` draws an individual chunk at (x, y) on the screen */
 static void chunk_draw(struct Chunk *chunk, int64_t x, int64_t y, struct PlayerView *view)
 {
-	// if the chunk doesn't exist, don't draw anything
-	if (!chunk)
+	// If the chunk doesn't exist, don't draw anything
+	if (!chunk || !view)
 		return;
 	int scaled_sprite_width = SCREEN_WIDTH / view->width;
 	int scaled_sprite_height = SCREEN_HEIGHT / view->height;
@@ -37,7 +37,6 @@ static void chunk_draw(struct Chunk *chunk, int64_t x, int64_t y, struct PlayerV
 			if (!tile_surface)
 				continue;
 
-			// BUG: This needs to be scaled...
 			SDL_Rect rect = {
 				.x = x + j * scaled_sprite_width,
 				.y = y + i * scaled_sprite_height,
@@ -45,14 +44,13 @@ static void chunk_draw(struct Chunk *chunk, int64_t x, int64_t y, struct PlayerV
 				.h = scaled_sprite_height,
 			};
 
-			//printf("chunk (%ld,%ld) coord (%d,%d) at pixel (%d,%d) to (%d,%d)\n", chunk->cx, chunk->cy, j, i, rect.x, rect.y, rect.x + rect.w, rect.y + rect.h);
-
 			if (SDL_BlitScaled(tile_surface, NULL, g_surface, &rect) < 0)
 				return;
 		}
 	}
 }
 
+/* `worldmap_draw` renders every chunk in-view according to the player view. */
 void worldmap_draw(struct WorldMap *world, struct PlayerView *view)
 {
 	// determine what chunks are within view
@@ -61,21 +59,26 @@ void worldmap_draw(struct WorldMap *world, struct PlayerView *view)
 	double top_y = view->center_y - view->height / 2.0;
 	double bottom_y = view->center_y + view->height / 2.0;
 
-	int64_t cx_lo = floor(left_x / CHUNK_LENGTH);
-	int64_t cx_hi = floor(right_x / CHUNK_LENGTH);
-	int64_t cy_lo = floor(top_y / CHUNK_LENGTH);
-	int64_t cy_hi = floor(bottom_y / CHUNK_LENGTH);
+	int64_t chunk_x_left = floor(left_x / CHUNK_LENGTH);
+	int64_t chunk_x_right = floor(right_x / CHUNK_LENGTH);
+	int64_t chunk_y_top = floor(top_y / CHUNK_LENGTH);
+	int64_t chunk_y_bottom = floor(bottom_y / CHUNK_LENGTH);
 
-	//printf("(%ld,%ld) -> (%ld,%ld)\n", cx_lo, cy_lo, cx_hi, cy_hi);
+	int scaled_sprite_width = SCREEN_WIDTH / view->width;
+	int scaled_sprite_height = SCREEN_HEIGHT / view->height;
+	int64_t py = SCREEN_HEIGHT
+		* (chunk_y_top * CHUNK_LENGTH - top_y) / view->height;
+	int64_t px_left = SCREEN_WIDTH
+		* (chunk_x_left * CHUNK_LENGTH - left_x) / view->width;
 
-	for (int64_t cy = cy_lo; cy <= cy_hi; ++cy) {
-		for (int64_t cx = cx_lo; cx <= cx_hi; ++cx) {
+	for (int64_t cy = chunk_y_top; cy <= chunk_y_bottom; ++cy) {
+		int64_t px = px_left;
+		for (int64_t cx = chunk_x_left; cx <= chunk_x_right; ++cx) {
 			struct Chunk *chunk = worldmap_get(world, cx, cy);
-			int64_t px = (cx * CHUNK_LENGTH - left_x) / view->width * SCREEN_WIDTH;
-			int64_t py = (cy * CHUNK_LENGTH - top_y) / view->height * SCREEN_HEIGHT;
-
 			chunk_draw(chunk, px, py, view);
+			px += scaled_sprite_width * CHUNK_LENGTH;
 		}
+		py += scaled_sprite_height * CHUNK_LENGTH;
 	}
 }
 

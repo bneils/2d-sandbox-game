@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <SDL2/SDL.h>
+
 #include "exit.h"
 #include "world.h"
 #include "render.h"
@@ -12,7 +13,7 @@ SDL_Window *g_window;
 SDL_Surface *g_surface;
 struct WorldMap *g_world;
 
-int main(int argc, char **argv)
+int main(void)
 {
 	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) < 0)
 		sdl_error(destroy);
@@ -38,7 +39,6 @@ int main(int argc, char **argv)
 			struct Chunk *chunk = chunk_new(cx, cy);
 			enum Tile tile = ((cx < 0) ^ (cy < 0)) ? TILE_DIRT : TILE_GRASS;
 			chunk_fill(chunk, tile);
-			printf("%d v. %d\n", tile, chunk->tiles[0][0]);
 			worldmap_put(g_world, chunk);
 		}
 	}
@@ -46,8 +46,8 @@ int main(int argc, char **argv)
 	struct PlayerView player_view = {
 		.center_x = 0.0,
 		.center_y = 0.0,
-		.width = 3.0,
-		.height = 3.0,
+		.width = 2,
+		.height = 2,
 	};
 
 	worldmap_draw(g_world, &player_view);

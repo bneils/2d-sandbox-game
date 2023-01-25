@@ -1,10 +1,11 @@
-#include "world.h"
 #include <stdlib.h>
 #include <string.h>
 
-/* https://web.archive.org/web/20220922000932/http://szudzik.com/ElegantPairing.pdf (pg.8)
- * Creates a deterministic hash from a pair of numbers,
+#include "world.h"
+
+/* `hash_coordinate` creates a deterministic hash from a pair of numbers,
  * similar to the Cantor pair function
+ * https://web.archive.org/web/20220922000932/http://szudzik.com/ElegantPairing.pdf (pg.8)
  */
 uint64_t hash_coordinate(int64_t x, int64_t y)
 {
@@ -86,6 +87,7 @@ struct Chunk *chunk_new(int64_t cx, int64_t cy)
 	return chunk;
 }
 
+/* `chunk_fill` replaces every Tile in a chunk with a specified tile. */
 void chunk_fill(struct Chunk *chunk, enum Tile tile)
 {
 	for (uint64_t i = 0; i < CHUNK_LENGTH * CHUNK_LENGTH; ++i)
