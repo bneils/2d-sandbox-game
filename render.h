@@ -3,12 +3,13 @@
 
 #include "world.h"
 
-#define SCREEN_WIDTH 512
+#define SCREEN_WIDTH 1024
 #define SCREEN_HEIGHT 512
 
 struct PlayerView {
 	double center_x, center_y;
-	double width, height;
+	// How many blocks are shown horizontally
+	double width;
 };
 
 int render_init(void);

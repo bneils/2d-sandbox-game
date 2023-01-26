@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 #include <SDL2/SDL.h>
 
 #include "exit.h"
@@ -46,21 +47,31 @@ int main(void)
 	struct PlayerView player_view = {
 		.center_x = 0.0,
 		.center_y = 0.0,
-		.width = 2,
-		.height = 2,
+		.width = 20,
 	};
-
-	worldmap_draw(g_world, &player_view);
-	SDL_UpdateWindowSurface(g_window);
 
 	SDL_Event e;
 	bool running = true;
-	while (running && SDL_WaitEvent(&e)) {
-		switch (e.type) {
-			case SDL_QUIT:
-				running = false;
-				break;
+
+	double t = 0;
+
+	while (running) {
+		if (SDL_PollEvent(&e)) {
+			switch (e.type) {
+				case SDL_QUIT:
+					running = false;
+					break;
+			}
 		}
+		if (SDL_FillRect(g_surface, NULL, SDL_MapRGB(g_surface->format, 255, 0, 0)) < 0)
+			sdl_error(destroy);
+		worldmap_draw(g_world, &player_view);
+		player_view.width = sin(t) * 5 + 30.0;
+		player_view.center_x = cos(t) * 10;
+		player_view.center_y = sin(t) * 10;
+		SDL_UpdateWindowSurface(g_window);
+		SDL_Delay(1000/60);
+		t += 1.0 / 60.0;
 	}
 
 	destroy();

@@ -3,10 +3,9 @@
 
 #include "render.h"
 #include "world.h"
+#include "macros.h"
 
 #define TILE_PATH(file_name) ("assets/" file_name)
-
-#define ARRAY_LEN(array) (sizeof(array) / sizeof(array[0]))
 
 // These must be ordered respective to the Tile enum in world.h
 static const char *tile_filenames[] = {
@@ -21,13 +20,15 @@ static SDL_Surface *tile_surfaces[ARRAY_LEN(tile_filenames)];
 extern SDL_Surface *g_surface;
 
 /* `chunk_draw` draws an individual chunk at (x, y) on the screen */
-static void chunk_draw(struct Chunk *chunk, int64_t x, int64_t y, struct PlayerView *view)
+static void chunk_draw(
+	struct Chunk *chunk,
+	struct PlayerView *view)
 {
 	// If the chunk doesn't exist, don't draw anything
-	if (!chunk || !view)
+	if (!chunk)
 		return;
-	int scaled_sprite_width = SCREEN_WIDTH / view->width;
-	int scaled_sprite_height = SCREEN_HEIGHT / view->height;
+
+	double tile_width = SCREEN_WIDTH / view->width;
 
 	for (int i = 0; i < CHUNK_LENGTH; ++i) {
 		for (int j = 0; j < CHUNK_LENGTH; ++j) {
@@ -37,14 +38,21 @@ static void chunk_draw(struct Chunk *chunk, int64_t x, int64_t y, struct PlayerV
 			if (!tile_surface)
 				continue;
 
+			// This first determines a tile's coordinate relative
+			// to the visual center, then turns that into an offset
+			// from the screen center
+			int64_t px = floor(((chunk->cx * CHUNK_LENGTH + j) - view->center_x) * tile_width + SCREEN_WIDTH / 2.0);
+			int64_t py = floor(((chunk->cy * CHUNK_LENGTH + i) - view->center_y) * tile_width + SCREEN_HEIGHT / 2.0);
+
 			SDL_Rect rect = {
-				.x = x + j * scaled_sprite_width,
-				.y = y + i * scaled_sprite_height,
-				.w = scaled_sprite_width,
-				.h = scaled_sprite_height,
+				.x = px,
+				.y = py,
+				.w = ceil(tile_width),
+				.h = ceil(tile_width),
 			};
 
-			if (SDL_BlitScaled(tile_surface, NULL, g_surface, &rect) < 0)
+			if (SDL_BlitScaled(tile_surface, NULL, g_surface,
+				&rect) < 0)
 				return;
 		}
 	}
@@ -53,32 +61,33 @@ static void chunk_draw(struct Chunk *chunk, int64_t x, int64_t y, struct PlayerV
 /* `worldmap_draw` renders every chunk in-view according to the player view. */
 void worldmap_draw(struct WorldMap *world, struct PlayerView *view)
 {
-	// determine what chunks are within view
-	double left_x = view->center_x - view->width / 2.0;
-	double right_x = view->center_x + view->width / 2.0;
-	double top_y = view->center_y - view->height / 2.0;
-	double bottom_y = view->center_y + view->height / 2.0;
+	// (x1, y1) ---------------+ x2 > x1
+	// |                       | y2 > y1
+	// |   What the user can   |
+	// |          see          |
+	// +----------------(x2, y2)
 
-	int64_t chunk_x_left = floor(left_x / CHUNK_LENGTH);
-	int64_t chunk_x_right = floor(right_x / CHUNK_LENGTH);
-	int64_t chunk_y_top = floor(top_y / CHUNK_LENGTH);
-	int64_t chunk_y_bottom = floor(bottom_y / CHUNK_LENGTH);
+	const double height = view->width *
+		((double) SCREEN_HEIGHT / SCREEN_WIDTH);
 
-	int scaled_sprite_width = SCREEN_WIDTH / view->width;
-	int scaled_sprite_height = SCREEN_HEIGHT / view->height;
-	int64_t py = SCREEN_HEIGHT
-		* (chunk_y_top * CHUNK_LENGTH - top_y) / view->height;
-	int64_t px_left = SCREEN_WIDTH
-		* (chunk_x_left * CHUNK_LENGTH - left_x) / view->width;
+	const double x1 = view->center_x - view->width / 2.0;
+	const double x2 = x1 + view->width;
+	const double y1 = view->center_y - height / 2.0;
+	const double y2 = y1 + height;
 
-	for (int64_t cy = chunk_y_top; cy <= chunk_y_bottom; ++cy) {
-		int64_t px = px_left;
-		for (int64_t cx = chunk_x_left; cx <= chunk_x_right; ++cx) {
+	// Chunk coordinates to determine what chunks are within view
+	const int64_t cx1 = floor(x1 / CHUNK_LENGTH);
+	const int64_t cx2 = floor(x2 / CHUNK_LENGTH);
+	const int64_t cy1 = floor(y1 / CHUNK_LENGTH);
+	const int64_t cy2 = floor(y2 / CHUNK_LENGTH);
+
+	for (int64_t cy = cy1; cy <= cy2; ++cy) {
+		for (int64_t cx = cx1; cx <= cx2; ++cx) {
 			struct Chunk *chunk = worldmap_get(world, cx, cy);
-			chunk_draw(chunk, px, py, view);
-			px += scaled_sprite_width * CHUNK_LENGTH;
+			if (!chunk)
+				continue;
+			chunk_draw(chunk, view);
 		}
-		py += scaled_sprite_height * CHUNK_LENGTH;
 	}
 }
 

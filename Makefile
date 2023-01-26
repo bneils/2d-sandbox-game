@@ -1,11 +1,11 @@
-NAME=voxel_sidescroller
+NAME=bin/adventure2d
 CFLAGS=-Wall -Wextra -O2 -lSDL2 -lm
 CC=gcc
-OBJ=main.o exit.o render.o world.o
+OBJS=main.o exit.o render.o world.o
 
 .PHONY: clean
 
-$(NAME): $(OBJ)
+$(NAME): $(OBJS)
 	$(CC) -o $@ $(CFLAGS) $^
 
 %.o: %.c
