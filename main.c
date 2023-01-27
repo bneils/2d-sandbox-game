@@ -35,10 +35,11 @@ int main(void)
 
 	g_world = worldmap_new();
 	// populate world with chunks
-	for (int cy = -1; cy <= 0; ++cy) {
-		for (int cx = -1; cx <= 0; ++cx) {
+	for (int cy = -128; cy <= 128; ++cy) {
+		for (int cx = -128; cx <= 128; ++cx) {
 			struct Chunk *chunk = chunk_new(cx, cy);
-			enum Tile tile = ((cx < 0) ^ (cy < 0)) ? TILE_DIRT : TILE_GRASS;
+			int dist = abs(cx) + abs(cy);
+			enum Tile tile = dist % 2 ? TILE_LOG : TILE_GRASS;
 			chunk_fill(chunk, tile);
 			worldmap_put(g_world, chunk);
 		}
@@ -47,8 +48,10 @@ int main(void)
 	struct PlayerView player_view = {
 		.center_x = 0.0,
 		.center_y = 0.0,
-		.width = 20,
+		.width = 100,
 	};
+
+	sprites_update(&player_view);
 
 	SDL_Event e;
 	bool running = true;
@@ -66,12 +69,10 @@ int main(void)
 		if (SDL_FillRect(g_surface, NULL, SDL_MapRGB(g_surface->format, 255, 0, 0)) < 0)
 			sdl_error(destroy);
 		worldmap_draw(g_world, &player_view);
-		player_view.width = sin(t) * 5 + 30.0;
-		player_view.center_x = cos(t) * 10;
-		player_view.center_y = sin(t) * 10;
+		player_view.center_x += 10.0 / 60.0;
 		SDL_UpdateWindowSurface(g_window);
 		SDL_Delay(1000/60);
-		t += 1.0 / 60.0;
+		t += 1.0 / 120.0;
 	}
 
 	destroy();

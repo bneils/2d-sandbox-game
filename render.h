@@ -3,8 +3,8 @@
 
 #include "world.h"
 
-#define SCREEN_WIDTH 1024
-#define SCREEN_HEIGHT 512
+#define SCREEN_WIDTH (720*16/9)
+#define SCREEN_HEIGHT 720
 
 struct PlayerView {
 	double center_x, center_y;
@@ -13,6 +13,7 @@ struct PlayerView {
 };
 
 int render_init(void);
+void sprites_update(struct PlayerView *);
 void worldmap_draw(struct WorldMap *world, struct PlayerView *view);
 
 #endif // RENDER_H
