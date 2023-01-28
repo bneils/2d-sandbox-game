@@ -1,5 +1,6 @@
 #include <SDL2/SDL.h>
 #include <math.h>
+#include <string.h>
 
 #include "render.h"
 #include "world.h"
@@ -19,6 +20,7 @@ static SDL_Surface *tile_surfaces[ARRAY_LEN(tile_filenames)];
 static SDL_Surface *optimized_tile_surfaces[ARRAY_LEN(tile_surfaces)][2][2];
 
 extern SDL_Surface *g_surface;
+extern char *error_message;
 
 #define WORLD_TO_PIXEL(relative_tile_pos, tile_width, screen_midpoint) \
 	floor((relative_tile_pos) * (tile_width) + (screen_midpoint))
@@ -27,15 +29,15 @@ extern SDL_Surface *g_surface;
  * Draws an individual chunk on the screen
  * @param chunk The chunk to be drawn
  * @param view The player view used to determine the screen coordinates
- * @return 0 on success and a negative value on error
+ * @return 0 on success and a negative value on SDL error
  */
 static int chunk_draw(
-	struct Chunk *chunk,
+	Chunk chunk,
 	struct PlayerView *view)
 {
 	// If the chunk doesn't exist, don't draw anything
 	if (!chunk)
-		return -1;
+		return 0;
 
 	double tile_width = SCREEN_WIDTH / view->width;
 
@@ -72,20 +74,23 @@ static int chunk_draw(
 			int extra_y = varied_tile_height - (int64_t) tile_width;
 			int extra_x = varied_tile_width - (int64_t) tile_width;
 
-			if (extra_y < 0 || extra_y > 1 || extra_x < 0 || extra_x > 1) {
-				puts("Out of bounds");
+			// Out of bounds
+			if (extra_y < 0 || extra_y > 1 || extra_x < 0
+				|| extra_x > 1) {
+				error_message = "drawn tile has wrong size";
 				return -1;
 			}
 
 			SDL_Surface *tile_surface =
 				optimized_tile_surfaces[tile][extra_y][extra_x];
 
-			if (!tile_surface) {
-				puts("No tile surface found");
-				return -1;
-			}
+			// Texture not found, maybe sprites_update or
+			// render_init wasn't called or this block has no image
+			if (!tile_surface)
+				continue;
 
-			if (SDL_BlitSurface(tile_surface, NULL, g_surface, &rect) < 0)
+			if (SDL_BlitSurface(tile_surface, NULL, g_surface,
+				&rect) < 0)
 				return -1;
 		}
 	}
@@ -96,14 +101,18 @@ static int chunk_draw(
  * Renders every chunk in-view from the player's perspective
  * @param world The collection of chunks
  * @param view The player view
+ * @return 0 on success and a negative value on SDL error
  */
-void worldmap_draw(struct WorldMap *world, struct PlayerView *view)
+int world_draw(World world, struct PlayerView *view)
 {
 	// (x1, y1) ---------------+ x2 > x1
 	// |                       | y2 > y1
 	// |   What the user can   |
 	// |          see          |
 	// +----------------(x2, y2)
+
+	if (!world || !view)
+		return -1;
 
 	const double height = view->width *
 		((double) SCREEN_HEIGHT / SCREEN_WIDTH);
@@ -121,21 +130,23 @@ void worldmap_draw(struct WorldMap *world, struct PlayerView *view)
 
 	for (int64_t cy = cy1; cy <= cy2; ++cy) {
 		for (int64_t cx = cx1; cx <= cx2; ++cx) {
-			struct Chunk *chunk = worldmap_get(world, cx, cy);
+			Chunk chunk = world_get(world, cx, cy);
 			if (!chunk)
 				continue;
-			chunk_draw(chunk, view);
+			if (chunk_draw(chunk, view) < 0)
+				return -1;
 		}
 	}
+	return 0;
 }
 
 /**
  * Loads all assets from file
- * @return 0 on success and a negative value on error
+ * @return 0 on success and a negative value on SDL error
  */
 int render_init(void)
 {
-	for (unsigned long i = 0; i < ARRAY_LEN(tile_filenames); ++i) {
+	for (size_t i = 0; i < ARRAY_LEN(tile_filenames); ++i) {
 		if (!tile_filenames[i])
 			continue;
 		SDL_Surface *surface = SDL_LoadBMP(tile_filenames[i]);
@@ -147,10 +158,27 @@ int render_init(void)
 }
 
 /**
+ * Frees all resources allocated by render_init
+ */
+void render_free(void)
+{
+	for (size_t i = 0; i < ARRAY_LEN(tile_surfaces); ++i) {
+		SDL_FreeSurface(tile_surfaces[i]);
+		SDL_FreeSurface(optimized_tile_surfaces[i][0][0]);
+		SDL_FreeSurface(optimized_tile_surfaces[i][1][0]);
+		SDL_FreeSurface(optimized_tile_surfaces[i][0][1]);
+		SDL_FreeSurface(optimized_tile_surfaces[i][1][1]);
+	}
+
+	memset(tile_surfaces, 0, sizeof(tile_surfaces));
+	memset(optimized_tile_surfaces, 0, sizeof(optimized_tile_surfaces));
+}
+
+/**
  * Optimizes surfaces for rendering
  * This must be called after changing PlayerView.width
  * @param view The player view
- * @return 0 on success and a negative value on error
+ * @return 0 on success and a negative value on SDL error
  */
 int sprites_update(struct PlayerView *view)
 {

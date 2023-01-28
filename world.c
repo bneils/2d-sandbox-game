@@ -22,11 +22,11 @@ static size_t hash_coordinate(int64_t x, int64_t y)
 
 /**
  * Allocates and initializes all resources for a WorldMap
- * @return A pointer to the worldmap, or NULL if an error occurred
+ * @return A pointer to the world, or NULL if an error occurred
  */
-struct WorldMap *worldmap_new(void)
+World world_new(void)
 {
-	struct WorldMap *world = malloc(sizeof(*world));
+	World world = malloc(sizeof(*world));
 	if (!world)
 		return NULL;
 	world->chunkmap = hashmap_new(512);
@@ -38,13 +38,24 @@ struct WorldMap *worldmap_new(void)
 }
 
 /**
+ * Frees all resources allocated by world_new
+ * @param world The world to destroy
+ */
+void world_free(World world)
+{
+	if (!world)
+		return;
+	hashmap_free(world->chunkmap);
+}
+
+/**
  * Gets a world chunk
  * @param world The world to index
  * @param cx The chunk x-coordinate
  * @param cy The chunk y-coordinate
  * @return A pointer to the Chunk structure, or NULL if it doesn't exist
  */
-struct Chunk *worldmap_get(struct WorldMap *world, int64_t cx, int64_t cy)
+Chunk world_get(World world, int64_t cx, int64_t cy)
 {
 	if (!world)
 		return NULL;
@@ -52,7 +63,7 @@ struct Chunk *worldmap_get(struct WorldMap *world, int64_t cx, int64_t cy)
 	size_t hash = hash_coordinate(cx, cy);
 	int64_t key[] = {cx, cy};
 
-	struct Chunk **ptr = (struct Chunk **)
+	Chunk *ptr = (Chunk *)
 		hashmap_get(world->chunkmap, key, sizeof(key), hash);
 	if (!ptr)
 		return NULL;
@@ -65,7 +76,7 @@ struct Chunk *worldmap_get(struct WorldMap *world, int64_t cx, int64_t cy)
  * @param chunk The chunk structure to insert
  * @return 0 on success and a negative value on error
  */
-int worldmap_put(struct WorldMap *world, struct Chunk *chunk)
+int world_put(World world, Chunk chunk)
 {
 	if (!world || !chunk)
 		return -1;
@@ -82,9 +93,9 @@ int worldmap_put(struct WorldMap *world, struct Chunk *chunk)
  * @param cy The chunk y-coordinate
  * @return A pointer to the chunk or NULL if an error occurred
  */
-struct Chunk *chunk_new(int64_t cx, int64_t cy)
+Chunk chunk_new(int64_t cx, int64_t cy)
 {
-	struct Chunk *chunk = malloc(sizeof(*chunk));
+	Chunk chunk = malloc(sizeof(*chunk));
 	if (!chunk)
 		return NULL;
 
@@ -99,7 +110,7 @@ struct Chunk *chunk_new(int64_t cx, int64_t cy)
  * @param chunk The chunk to fill
  * @param tile The tile to use
  */
-void chunk_fill(struct Chunk *chunk, enum Tile tile)
+void chunk_fill(Chunk chunk, enum Tile tile)
 {
 	if (!chunk)
 		return;

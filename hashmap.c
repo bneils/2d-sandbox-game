@@ -42,7 +42,7 @@ HashMap hashmap_new(size_t num_buckets)
 
 /**
  * Frees all resources allocated for the hashmap
- * @param hashmap The hashmap
+ * @param hashmap The hashmap to be freed
  */
 void hashmap_free(HashMap hashmap)
 {

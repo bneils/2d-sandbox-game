@@ -20,7 +20,7 @@ enum Tile {
 	TILE_LOG,
 };
 
-struct Chunk {
+typedef struct {
 	// These are chunk coordinates (adjacent chunks increment each
 	// coordinate)
 	union {
@@ -31,17 +31,18 @@ struct Chunk {
 		const uint8_t cxy[16];
 	};
 	enum Tile tiles[CHUNK_LENGTH][CHUNK_LENGTH];
-};
+} *Chunk;
 
-struct WorldMap {
+typedef struct {
 	struct HashMap *chunkmap;
-};
+} *World;
 
-struct Chunk *chunk_new(int64_t cx, int64_t cy);
-void chunk_fill(struct Chunk *, enum Tile);
+Chunk chunk_new(int64_t cx, int64_t cy);
+void chunk_fill(Chunk, enum Tile);
 
-struct WorldMap *worldmap_new(void);
-struct Chunk *worldmap_get(struct WorldMap *, int64_t cx, int64_t cy);
-int worldmap_put(struct WorldMap *, struct Chunk *);
+World world_new(void);
+void world_free(World);
+Chunk world_get(World, int64_t cx, int64_t cy);
+int world_put(World, Chunk);
 
 #endif // WORLD_H
