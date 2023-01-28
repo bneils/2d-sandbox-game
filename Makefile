@@ -1,4 +1,4 @@
-NAME=bin/adventure2d
+NAME=bin/sandbox_game
 CFLAGS=-Wall -Wextra -O2 -lSDL2 -lm -luuid 
 CC=gcc
 OBJS=main.o exit.o render.o world.o entity.o hashmap.o
