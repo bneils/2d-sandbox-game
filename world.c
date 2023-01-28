@@ -3,11 +3,16 @@
 
 #include "world.h"
 
-/* `hash_coordinate` creates a deterministic hash from a pair of numbers,
- * similar to the Cantor pair function
- * https://web.archive.org/web/20220922000932/http://szudzik.com/ElegantPairing.pdf (pg.8)
+static size_t hash_coordinate(int64_t, int64_t);
+
+/**
+ * Hashes a pair of numbers using the Elegant Pairing function
+ * http://szudzik.com/ElegantPairing.pdf (pg.8)
+ * @param x The x coordinate
+ * @param y The y coordinate
+ * @return The hashed value
  */
-size_t hash_coordinate(int64_t x, int64_t y)
+static size_t hash_coordinate(int64_t x, int64_t y)
 {
 	uint64_t ux = x;
 	uint64_t uy = y;
@@ -15,7 +20,10 @@ size_t hash_coordinate(int64_t x, int64_t y)
 	return ux + ((ux >= uy) ? ux * ux + uy : uy * uy);
 }
 
-/* `worldmap_new` allocates all resources and initializes them for a WorldMap */
+/**
+ * Allocates and initializes all resources for a WorldMap
+ * @return A pointer to the worldmap, or NULL if an error occurred
+ */
 struct WorldMap *worldmap_new(void)
 {
 	struct WorldMap *world = malloc(sizeof(*world));
@@ -29,7 +37,12 @@ struct WorldMap *worldmap_new(void)
 	return world;
 }
 
-/* `worldmap_get` returns a (Chunk *) corresponding to a given (cx, cy).
+/**
+ * Gets a world chunk
+ * @param world The world to index
+ * @param cx The chunk x-coordinate
+ * @param cy The chunk y-coordinate
+ * @return A pointer to the Chunk structure, or NULL if it doesn't exist
  */
 struct Chunk *worldmap_get(struct WorldMap *world, int64_t cx, int64_t cy)
 {
@@ -46,9 +59,11 @@ struct Chunk *worldmap_get(struct WorldMap *world, int64_t cx, int64_t cy)
 	return *ptr;
 }
 
-/* `worldmap_put` puts a (Chunk *) into a hash map-type structure if it does not
- * already exist. Iterates bucket linked list.
- * Returns a negative value on error.
+/**
+ * Inserts a chunk into the world
+ * @param world The world to index
+ * @param chunk The chunk structure to insert
+ * @return 0 on success and a negative value on error
  */
 int worldmap_put(struct WorldMap *world, struct Chunk *chunk)
 {
@@ -61,7 +76,11 @@ int worldmap_put(struct WorldMap *world, struct Chunk *chunk)
 		chunk, hash);
 }
 
-/* `chunk_new` allocates a new Chunk structure and initializes it.
+/**
+ * Allocates a new Chunk structure and initializes it
+ * @param cx The chunk x-coordinate
+ * @param cy The chunk y-coordinate
+ * @return A pointer to the chunk or NULL if an error occurred
  */
 struct Chunk *chunk_new(int64_t cx, int64_t cy)
 {
@@ -69,14 +88,17 @@ struct Chunk *chunk_new(int64_t cx, int64_t cy)
 	if (!chunk)
 		return NULL;
 
-	chunk->next = NULL;
 	chunk->cx = cx;
 	chunk->cy = cy;
 
 	return chunk;
 }
 
-/* `chunk_fill` replaces every Tile in a chunk with a specified tile. */
+/**
+ * Fills every tile in a chunk with a specified Tile
+ * @param chunk The chunk to fill
+ * @param tile The tile to use
+ */
 void chunk_fill(struct Chunk *chunk, enum Tile tile)
 {
 	if (!chunk)

@@ -31,20 +31,17 @@ struct Chunk {
 		const uint8_t cxy[16];
 	};
 	enum Tile tiles[CHUNK_LENGTH][CHUNK_LENGTH];
-	struct Chunk *next;
 };
 
 struct WorldMap {
 	struct HashMap *chunkmap;
 };
 
-size_t hash_coordinate(int64_t x, int64_t y);
-
 struct Chunk *chunk_new(int64_t cx, int64_t cy);
+void chunk_fill(struct Chunk *, enum Tile);
 
 struct WorldMap *worldmap_new(void);
 struct Chunk *worldmap_get(struct WorldMap *, int64_t cx, int64_t cy);
 int worldmap_put(struct WorldMap *, struct Chunk *);
-void chunk_fill(struct Chunk *, enum Tile);
 
 #endif // WORLD_H

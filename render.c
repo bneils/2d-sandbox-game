@@ -20,21 +20,22 @@ static SDL_Surface *optimized_tile_surfaces[ARRAY_LEN(tile_surfaces)][2][2];
 
 extern SDL_Surface *g_surface;
 
-static int64_t world_to_pixel(double relative_tile_pos,
-	double tile_width,
-	double screen_midpoint)
-{
-	return floor(relative_tile_pos * tile_width + screen_midpoint);
-}
+#define WORLD_TO_PIXEL(relative_tile_pos, tile_width, screen_midpoint) \
+	floor((relative_tile_pos) * (tile_width) + (screen_midpoint))
 
-/* `chunk_draw` draws an individual chunk at (x, y) on the screen */
-static void chunk_draw(
+/**
+ * Draws an individual chunk on the screen
+ * @param chunk The chunk to be drawn
+ * @param view The player view used to determine the screen coordinates
+ * @return 0 on success and a negative value on error
+ */
+static int chunk_draw(
 	struct Chunk *chunk,
 	struct PlayerView *view)
 {
 	// If the chunk doesn't exist, don't draw anything
 	if (!chunk)
-		return;
+		return -1;
 
 	double tile_width = SCREEN_WIDTH / view->width;
 
@@ -45,17 +46,17 @@ static void chunk_draw(
 			// This first determines a tile's coordinate relative
 			// to the visual center, then turns that into an offset
 			// from the screen center
-			int64_t px = world_to_pixel(
+			int64_t px = WORLD_TO_PIXEL(
 				chunk->cx * CHUNK_LENGTH + j - view->center_x,
 				tile_width, SCREEN_WIDTH / 2.0);
-			int64_t py = world_to_pixel(
+			int64_t py = WORLD_TO_PIXEL(
 				chunk->cy * CHUNK_LENGTH + i - view->center_y,
 				tile_width, SCREEN_HEIGHT / 2.0);
 
-			int64_t varied_tile_width = world_to_pixel(
+			int64_t varied_tile_width = WORLD_TO_PIXEL(
 				chunk->cx * CHUNK_LENGTH + j + 1 - view->center_x,
 				tile_width, SCREEN_WIDTH / 2.0) - px;
-			int64_t varied_tile_height = world_to_pixel(
+			int64_t varied_tile_height = WORLD_TO_PIXEL(
 				chunk->cy * CHUNK_LENGTH + i + 1 - view->center_y,
 				tile_width, SCREEN_HEIGHT / 2.0) - py;
 
@@ -73,7 +74,7 @@ static void chunk_draw(
 
 			if (extra_y < 0 || extra_y > 1 || extra_x < 0 || extra_x > 1) {
 				puts("Out of bounds");
-				return;
+				return -1;
 			}
 
 			SDL_Surface *tile_surface =
@@ -81,16 +82,21 @@ static void chunk_draw(
 
 			if (!tile_surface) {
 				puts("No tile surface found");
-				continue;
+				return -1;
 			}
 
 			if (SDL_BlitSurface(tile_surface, NULL, g_surface, &rect) < 0)
-				return;
+				return -1;
 		}
 	}
+	return 0;
 }
 
-/* `worldmap_draw` renders every chunk in-view according to the player view. */
+/**
+ * Renders every chunk in-view from the player's perspective
+ * @param world The collection of chunks
+ * @param view The player view
+ */
 void worldmap_draw(struct WorldMap *world, struct PlayerView *view)
 {
 	// (x1, y1) ---------------+ x2 > x1
@@ -123,7 +129,10 @@ void worldmap_draw(struct WorldMap *world, struct PlayerView *view)
 	}
 }
 
-/* `render_init` loads all assets */
+/**
+ * Loads all assets from file
+ * @return 0 on success and a negative value on error
+ */
 int render_init(void)
 {
 	for (unsigned long i = 0; i < ARRAY_LEN(tile_filenames); ++i) {
@@ -137,26 +146,36 @@ int render_init(void)
 	return 0;
 }
 
-/* `sprites_update` accepts a player view and optimizes surfaces for rendering.
- * This must be called after changing PlayerView.width to get correct results.
+/**
+ * Optimizes surfaces for rendering
+ * This must be called after changing PlayerView.width
+ * @param view The player view
+ * @return 0 on success and a negative value on error
  */
-void sprites_update(struct PlayerView *view)
+int sprites_update(struct PlayerView *view)
 {
 	if (!view)
-		return;
+		return -1;
 
 	int sprite_width = ceil(SCREEN_WIDTH / view->width);
 	for (size_t i = 0; i < ARRAY_LEN(optimized_tile_surfaces); ++i) {
+		if (!tile_surfaces[i])
+			continue;
 		for (int y = 0; y <= 1; ++y)
 			for (int x = 0; x <= 1; ++x) {
 				SDL_Surface *result =
-					optimized_tile_surfaces[i][y][x] =
 					SDL_CreateRGBSurfaceWithFormat(
 						0, sprite_width + x,
 						sprite_width + y,
 						32, SDL_PIXELFORMAT_RGB888);
-				SDL_BlitScaled(tile_surfaces[i], NULL,
-					result, NULL);
+				if (!result)
+					return -1;
+				optimized_tile_surfaces[i][y][x] = result;
+				if (SDL_BlitScaled(tile_surfaces[i], NULL,
+					result, NULL) < 0)
+					return -1;
 			}
 	}
+
+	return 0;
 }

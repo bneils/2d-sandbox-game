@@ -18,7 +18,12 @@ struct HashMap {
 static struct HashMapNode *hashmap_get_node(HashMap hashmap,
 	const void *key, size_t key_size, size_t hash);
 
-/* `hashmap_new` creates a new hashmap with a fixed number of buckets */
+/**
+ * Creates a new hashmap with a fixed number of buckets
+ * @param num_buckets The number of buckets used internally for the hashmap,
+ * 	with more meaning less key depth and better fetch times
+ * @return The hash map, or NULL if an error occurred
+ */
 HashMap hashmap_new(size_t num_buckets)
 {
 	HashMap hashmap = malloc(sizeof(*hashmap));
@@ -35,7 +40,10 @@ HashMap hashmap_new(size_t num_buckets)
 	return hashmap;
 }
 
-/* `hashmap_free` frees all resources allocated for the hashmap. */
+/**
+ * Frees all resources allocated for the hashmap
+ * @param hashmap The hashmap
+ */
 void hashmap_free(HashMap hashmap)
 {
 	if (!hashmap)
@@ -44,8 +52,16 @@ void hashmap_free(HashMap hashmap)
 	free(hashmap);
 }
 
-/* `hashmap_put` creates or changes an entry inside of a hashmap to point to
- * a value.
+/**
+ * Creates or changes an entry inside of a hashmap to point to
+ * a value
+ * @param hashmap The hash map to modify
+ * @param key A pointer to any data to use for the key
+ * @param key_size The size of key
+ * @value The pointer to return when accessing with this key
+ * @hash The hashed value of this key
+ * 	Only a single hashing function should be used for a hashmap
+ * @return 0 on success and a negative value on error
  */
 int hashmap_put(HashMap hashmap, const void *key, size_t key_size,
 	const void *value, size_t hash)
@@ -76,8 +92,14 @@ int hashmap_put(HashMap hashmap, const void *key, size_t key_size,
 	return 0;
 }
 
-/* `hashmap_get_node` gets the internal node used in the hash map for a certain
- * key. */
+/**
+ * Gets the internal node used in the hash map for a certain key
+ * @param hashmap The hash map to get from
+ * @param key A pointer to data
+ * @param key_size The size of key
+ * @param hash The hashed value of the key
+ * @return The HashMapNode with a matching key or NULL if none matched
+ */
 static struct HashMapNode *hashmap_get_node(HashMap hashmap, const void *key,
 	size_t key_size, size_t hash)
 {
@@ -96,11 +118,19 @@ static struct HashMapNode *hashmap_get_node(HashMap hashmap, const void *key,
 	return NULL;
 }
 
-/* `hashmap_get` returns a pointer to the value corresponding to key.
- * This value is not immutable and can change whenever a new put is made for
- * the same key. If the key is removed, the pointer becomes invalid. */
-void **hashmap_get(HashMap hashmap, const void *key, size_t key_size,
-	size_t hash)
+/**
+ * Fetches from a hash map
+ * @param hashmap The hash map being used
+ * @param key A pointer to data
+ * @param key_size The size of key
+ * @param hash A hash of key
+ * @return A pointer to the pointer value or NULL if it doesn't exist.
+ * Can be dereferenced to be used as a r or l-value and represents the
+ * tentative address within this entry that will become invalid once this entry
+ * is removed or the hashmap is freed.
+ */
+void **
+hashmap_get(HashMap hashmap, const void *key, size_t key_size, size_t hash)
 {
 	struct HashMapNode *node =
 		hashmap_get_node(hashmap, key, key_size, hash);
@@ -109,8 +139,15 @@ void **hashmap_get(HashMap hashmap, const void *key, size_t key_size,
 	return &node->value;
 }
 
-void hashmap_remove(HashMap hashmap, const void *key, size_t key_size,
-	size_t hash)
+/**
+ * Removes an entry from a hashmap
+ * @param hashmap The hashmap to remove from
+ * @param key The key that identifies the entry
+ * @param key_size The size of the key
+ * @param hash The key's hash
+ */
+void
+hashmap_remove(HashMap hashmap, const void *key, size_t key_size, size_t hash)
 {
 	struct HashMapNode *node =
 		hashmap_get_node(hashmap, key, key_size, hash);

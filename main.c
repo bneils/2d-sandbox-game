@@ -20,7 +20,7 @@ int main(void)
 		sdl_error(destroy);
 
 	g_window = SDL_CreateWindow(
-		"Minecroift", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+		"Minecraft", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
 		SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
 
 	if (!g_window)
@@ -48,10 +48,11 @@ int main(void)
 	struct PlayerView player_view = {
 		.center_x = 0.0,
 		.center_y = 0.0,
-		.width = 2500,
+		.width = 25,
 	};
 
-	sprites_update(&player_view);
+	if (sprites_update(&player_view) < 0)
+		sdl_error(destroy);
 
 	SDL_Event e;
 	bool running = true;
@@ -71,7 +72,7 @@ int main(void)
 		worldmap_draw(g_world, &player_view);
 		player_view.center_x += 2.0 / 60.0;
 		SDL_UpdateWindowSurface(g_window);
-		SDL_Delay(1000/60);
+		SDL_Delay(1000 / 60);
 		t += 1.0 / 120.0;
 	}
 

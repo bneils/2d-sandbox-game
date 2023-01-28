@@ -13,7 +13,7 @@ struct PlayerView {
 };
 
 int render_init(void);
-void sprites_update(struct PlayerView *);
+int sprites_update(struct PlayerView *);
 void worldmap_draw(struct WorldMap *world, struct PlayerView *view);
 
 #endif // RENDER_H
