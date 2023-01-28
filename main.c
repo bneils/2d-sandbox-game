@@ -48,7 +48,7 @@ int main(void)
 	struct PlayerView player_view = {
 		.center_x = 0.0,
 		.center_y = 0.0,
-		.width = 100,
+		.width = 2500,
 	};
 
 	sprites_update(&player_view);
@@ -69,7 +69,7 @@ int main(void)
 		if (SDL_FillRect(g_surface, NULL, SDL_MapRGB(g_surface->format, 255, 0, 0)) < 0)
 			sdl_error(destroy);
 		worldmap_draw(g_world, &player_view);
-		player_view.center_x += 10.0 / 60.0;
+		player_view.center_x += 2.0 / 60.0;
 		SDL_UpdateWindowSurface(g_window);
 		SDL_Delay(1000/60);
 		t += 1.0 / 120.0;

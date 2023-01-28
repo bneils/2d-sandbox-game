@@ -1,7 +1,7 @@
 NAME=bin/adventure2d
-CFLAGS=-Wall -Wextra -O2 -lSDL2 -lm
+CFLAGS=-Wall -Wextra -O2 -lSDL2 -lm -luuid 
 CC=gcc
-OBJS=main.o exit.o render.o world.o
+OBJS=main.o exit.o render.o world.o entity.o hashmap.o
 
 .PHONY: clean
 

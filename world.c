@@ -7,7 +7,7 @@
  * similar to the Cantor pair function
  * https://web.archive.org/web/20220922000932/http://szudzik.com/ElegantPairing.pdf (pg.8)
  */
-uint64_t hash_coordinate(int64_t x, int64_t y)
+size_t hash_coordinate(int64_t x, int64_t y)
 {
 	uint64_t ux = x;
 	uint64_t uy = y;
@@ -15,20 +15,17 @@ uint64_t hash_coordinate(int64_t x, int64_t y)
 	return ux + ((ux >= uy) ? ux * ux + uy : uy * uy);
 }
 
+/* `worldmap_new` allocates all resources and initializes them for a WorldMap */
 struct WorldMap *worldmap_new(void)
 {
 	struct WorldMap *world = malloc(sizeof(*world));
 	if (!world)
 		return NULL;
-
-	world->chunk_buckets = calloc(WORLDMAP_BUCKETS_SIZE,
-		sizeof(*world->chunk_buckets));
-
-	if (!world->chunk_buckets) {
+	world->chunkmap = hashmap_new(512);
+	if (!world->chunkmap) {
 		free(world);
 		return NULL;
 	}
-
 	return world;
 }
 
@@ -39,37 +36,29 @@ struct Chunk *worldmap_get(struct WorldMap *world, int64_t cx, int64_t cy)
 	if (!world)
 		return NULL;
 
-	uint64_t hash_idx = hash_coordinate(cx, cy) % WORLDMAP_BUCKETS_SIZE;
-	struct Chunk *head = world->chunk_buckets[hash_idx];
+	size_t hash = hash_coordinate(cx, cy);
+	int64_t key[] = {cx, cy};
 
-	// Traverse the linked list and find a chunk that matches our coordinates
-	while (head) {
-		if (head->cx == cx && head->cy == cy)
-			return head;
-		head = head->next;
-	}
-
-	return NULL;
+	struct Chunk **ptr = (struct Chunk **)
+		hashmap_get(world->chunkmap, key, sizeof(key), hash);
+	if (!ptr)
+		return NULL;
+	return *ptr;
 }
 
 /* `worldmap_put` puts a (Chunk *) into a hash map-type structure if it does not
  * already exist. Iterates bucket linked list.
+ * Returns a negative value on error.
  */
-void worldmap_put(struct WorldMap *world, struct Chunk *chunk)
+int worldmap_put(struct WorldMap *world, struct Chunk *chunk)
 {
 	if (!world || !chunk)
-		return;
+		return -1;
 
-	// Don't insert the chunk if it already exists
-	if (worldmap_get(world, chunk->cx, chunk->cy))
-		return;
-
-	uint64_t hash_idx = hash_coordinate(chunk->cx, chunk->cy) % WORLDMAP_BUCKETS_SIZE;
-	struct Chunk **head_ptr = &world->chunk_buckets[hash_idx];
-
-	// Prepend to the beginning of this linked list
-	chunk->next = *head_ptr;
-	*head_ptr = chunk;
+	size_t hash = hash_coordinate(chunk->cx, chunk->cy);
+	// The key and key_size fields happen to be the same size as cx & cy
+	return hashmap_put(world->chunkmap, chunk->cxy, sizeof(chunk->cxy),
+		chunk, hash);
 }
 
 /* `chunk_new` allocates a new Chunk structure and initializes it.
@@ -90,6 +79,9 @@ struct Chunk *chunk_new(int64_t cx, int64_t cy)
 /* `chunk_fill` replaces every Tile in a chunk with a specified tile. */
 void chunk_fill(struct Chunk *chunk, enum Tile tile)
 {
-	for (uint64_t i = 0; i < CHUNK_LENGTH * CHUNK_LENGTH; ++i)
-		((enum Tile *) chunk->tiles)[i] = tile;
+	if (!chunk)
+		return;
+	for (int i = 0; i < CHUNK_LENGTH; ++i)
+		for (int j = 0; j < CHUNK_LENGTH; ++j)
+			chunk->tiles[i][j] = tile;
 }
