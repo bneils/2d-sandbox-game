@@ -8,12 +8,13 @@
 
 #define TILE_PATH(file_name) ("assets/" file_name)
 
-// These must be ordered respective to the Tile enum in world.h
-static const char *tile_filenames[] = {
+// These must be ordered respective to the BlockID enum in world.h
+static const char *tile_filenames[NUM_TILES] = {
 	TILE_PATH("dirt.bmp"),
 	TILE_PATH("grass.bmp"),
-	NULL,
+	NULL, // AIR
 	TILE_PATH("log.bmp"),
+	TILE_PATH("unbreakable_rock.bmp"),
 };
 
 static SDL_Surface *tile_surfaces[ARRAY_LEN(tile_filenames)];
@@ -43,7 +44,7 @@ static int chunk_draw(
 
 	for (int i = 0; i < CHUNK_LENGTH; ++i) {
 		for (int j = 0; j < CHUNK_LENGTH; ++j) {
-			enum Tile tile = chunk->tiles[i][j];
+			enum BlockID tile = chunk->tiles[i][j];
 
 			// This first determines a tile's coordinate relative
 			// to the visual center, then turns that into an offset
@@ -191,17 +192,35 @@ int sprites_update(struct PlayerView *view)
 			continue;
 		for (int y = 0; y <= 1; ++y)
 			for (int x = 0; x <= 1; ++x) {
-				SDL_Surface *result =
-					SDL_CreateRGBSurfaceWithFormat(
+				// Unify the pixel format
+				SDL_Surface *optimized_surface =
+					SDL_ConvertSurface(
+						tile_surfaces[i],
+						g_surface->format,
+						0);
+				if (!optimized_surface)
+					return -1;
+				// Then scale it
+				SDL_Surface *scaled_surface =
+					SDL_CreateRGBSurface(
 						0, sprite_width + x,
 						sprite_width + y,
-						32, SDL_PIXELFORMAT_RGB888);
-				if (!result)
+						optimized_surface->format->
+							BitsPerPixel,
+						optimized_surface->format->Rmask,
+						optimized_surface->format->Gmask,
+						optimized_surface->format->Bmask,
+						optimized_surface->format->Amask
+					);
+
+				if (!scaled_surface)
 					return -1;
-				optimized_tile_surfaces[i][y][x] = result;
-				if (SDL_BlitScaled(tile_surfaces[i], NULL,
-					result, NULL) < 0)
+				optimized_tile_surfaces[i][y][x]
+					= scaled_surface;
+				if (SDL_BlitScaled(optimized_surface, NULL,
+					scaled_surface, NULL) < 0)
 					return -1;
+				SDL_FreeSurface(optimized_surface);
 			}
 	}
 

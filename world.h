@@ -2,6 +2,7 @@
 #define WORLD_H
 
 #include <stdint.h>
+#include <stdbool.h>
 #include "hashmap.h"
 
 // -x -> +x
@@ -13,11 +14,18 @@
 // Chunks are square
 #define CHUNK_LENGTH 16
 
-enum Tile {
+enum BlockID {
 	TILE_DIRT = 0,
 	TILE_GRASS,
 	TILE_AIR,
 	TILE_LOG,
+	TILE_UNBREAKABLE_ROCK,
+	NUM_TILES
+};
+
+struct BlockProperty {
+	float break_time_sec;
+	bool has_collision;
 };
 
 typedef struct {
@@ -30,19 +38,21 @@ typedef struct {
 		// This is just an alias to the bytes representing cx and cy.
 		const uint8_t cxy[16];
 	};
-	enum Tile tiles[CHUNK_LENGTH][CHUNK_LENGTH];
+	enum BlockID tiles[CHUNK_LENGTH][CHUNK_LENGTH];
 } *Chunk;
 
 typedef struct {
-	struct HashMap *chunkmap;
+	HashMap chunkmap, entitymap;
 } *World;
 
 Chunk chunk_new(int64_t cx, int64_t cy);
-void chunk_fill(Chunk, enum Tile);
+void chunk_fill(Chunk, enum BlockID);
 
 World world_new(void);
 void world_free(World);
 Chunk world_get(World, int64_t cx, int64_t cy);
 int world_put(World, Chunk);
+
+int world_generate_flat(World world);
 
 #endif // WORLD_H

@@ -10,7 +10,7 @@
 
 SDL_Window *g_window;
 SDL_Surface *g_surface;
-struct WorldMap *g_world;
+World g_world;
 
 int main(void)
 {
@@ -35,19 +35,7 @@ int main(void)
 	if (!g_world)
 		raise_error();
 
-	// populate world with chunks
-	for (int cy = -128; cy <= 128; ++cy) {
-		for (int cx = -128; cx <= 128; ++cx) {
-			struct Chunk *chunk = chunk_new(cx, cy);
-			if (!chunk)
-				raise_error();
-			int dist = abs(cx) + abs(cy);
-			enum Tile tile = dist % 2 ? TILE_LOG : TILE_GRASS;
-			chunk_fill(chunk, tile);
-			if (world_put(g_world, chunk) < 0)
-				raise_error();
-		}
-	}
+	world_generate_flat(g_world);
 
 	struct PlayerView player_view = {
 		.center_x = 0.0,
@@ -64,6 +52,7 @@ int main(void)
 	double t = 0;
 
 	while (running) {
+		// event managing
 		if (SDL_PollEvent(&e)) {
 			switch (e.type) {
 				case SDL_QUIT:
@@ -71,11 +60,15 @@ int main(void)
 					break;
 			}
 		}
-		if (SDL_FillRect(g_surface, NULL, SDL_MapRGB(g_surface->format, 255, 0, 0)) < 0)
+
+		// stage the canvas and draw to it
+		if (SDL_FillRect(g_surface, NULL,
+			SDL_MapRGB(g_surface->format, 0, 0, 0)) < 0)
 			raise_error();
 		if (world_draw(g_world, &player_view) < 0)
 			raise_error();
-		player_view.center_x += 2.0 / 60.0;
+
+		player_view.center_y += 2.0 / 60.0;
 		if (SDL_UpdateWindowSurface(g_window) < 0)
 			raise_error();
 		SDL_Delay(1000 / 60);

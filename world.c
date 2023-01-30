@@ -1,9 +1,22 @@
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
+#include <math.h>
 
 #include "world.h"
 
 static size_t hash_coordinate(int64_t, int64_t);
+
+struct BlockProperty block_properties[NUM_TILES] = {
+	{ .break_time_sec = 1.0, .has_collision = true }, // DIRT
+	{ .break_time_sec = 1.0, .has_collision = true }, // GRASS
+	{ .break_time_sec = INFINITY, .has_collision = false }, // AIR
+	{ .break_time_sec = 5.0, .has_collision = false }, // LOG
+	// UNBREAKABLE_ROCK
+	{ .break_time_sec = INFINITY, .has_collision = true },
+};
+
+extern char *error_message;
 
 /**
  * Hashes a pair of numbers using the Elegant Pairing function
@@ -96,8 +109,10 @@ int world_put(World world, Chunk chunk)
 Chunk chunk_new(int64_t cx, int64_t cy)
 {
 	Chunk chunk = malloc(sizeof(*chunk));
-	if (!chunk)
+	if (!chunk) {
+		error_message = "malloc failed";
 		return NULL;
+	}
 
 	chunk->cx = cx;
 	chunk->cy = cy;
@@ -106,15 +121,36 @@ Chunk chunk_new(int64_t cx, int64_t cy)
 }
 
 /**
- * Fills every tile in a chunk with a specified Tile
+ * Fills every tile in a chunk with a specified BlockID
  * @param chunk The chunk to fill
  * @param tile The tile to use
  */
-void chunk_fill(Chunk chunk, enum Tile tile)
+void chunk_fill(Chunk chunk, enum BlockID tile)
 {
 	if (!chunk)
 		return;
 	for (int i = 0; i < CHUNK_LENGTH; ++i)
 		for (int j = 0; j < CHUNK_LENGTH; ++j)
 			chunk->tiles[i][j] = tile;
+}
+
+/**
+ * Generate a flat world with the ground at y=-1.
+ * @param world The world to populate with chunks
+ * @return 0 on success and a negative value on error
+ */
+int world_generate_flat(World world)
+{
+	for (int y = 0; y <= 16; ++y)
+		for (int x = -16; x <= 16; ++x) {
+			Chunk chunk = chunk_new(x, y);
+			if (!chunk)
+				return -1;
+			if (world_put(world, chunk) < 0)
+				return -1;
+			chunk_fill(chunk,
+				(y == 16) ? TILE_UNBREAKABLE_ROCK : TILE_DIRT
+			);
+		}
+	return 0;
 }
