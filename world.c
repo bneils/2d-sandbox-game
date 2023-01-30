@@ -58,6 +58,14 @@ void world_free(World world)
 {
 	if (!world)
 		return;
+	
+	// Free all chunks by iterating hash map
+	struct HashMapIterator it;
+	struct HashMapNode *entry;
+	hashmap_iterator_init(&it, world->chunkmap);
+	while ((entry = hashmap_iterate(&it)))
+		chunk_free(entry->value);
+
 	hashmap_free(world->chunkmap);
 }
 
@@ -117,6 +125,9 @@ Chunk chunk_new(int64_t cx, int64_t cy)
 	chunk->cx = cx;
 	chunk->cy = cy;
 
+	// Chunks by default contain only air
+	chunk_fill(chunk, TILE_AIR);
+
 	return chunk;
 }
 
@@ -153,4 +164,41 @@ int world_generate_flat(World world)
 			);
 		}
 	return 0;
+}
+
+/**
+ * Change the block at (x, y) in the world
+ * @param world The world
+ * @param x The x-coordinate
+ * @param y The y-coordinate
+ * @param tile The tile to use
+ * @return 0 on success or a negative value on error
+ */
+int world_set_block(World world, int64_t x, int64_t y, enum BlockID tile)
+{
+	if (!world)
+		return -1;
+	int64_t cx = floor(x / (double) CHUNK_LENGTH);
+	int64_t cy = floor(y / (double) CHUNK_LENGTH);
+	
+	Chunk chunk = world_get(world, cx, cy);
+	// If the chunk doesn't exist we need to quietly create it
+	if (!chunk) {
+		chunk = chunk_new(cx, cy);
+		if (!chunk)
+			return -1;
+		if (world_put(world, chunk) < 0)
+			return -1;
+	}
+	
+	int rx = x - cx * CHUNK_LENGTH;
+	int ry = y - cy * CHUNK_LENGTH;
+	chunk->tiles[ry][rx] = tile;
+
+	return 0;
+}
+
+void chunk_free(Chunk chunk)
+{
+	free(chunk);
 }

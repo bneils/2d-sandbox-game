@@ -2,14 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-struct HashMapNode {
-	void *key;
-	size_t key_size;
-	void *value;
-	struct HashMapNode *next;
-	struct HashMapNode *last;
-};
-
 struct HashMap {
 	struct HashMapNode **buckets;
 	size_t num_buckets;
@@ -48,6 +40,7 @@ void hashmap_free(HashMap hashmap)
 {
 	if (!hashmap)
 		return;
+	
 	free(hashmap->buckets);
 	free(hashmap);
 }
@@ -163,4 +156,40 @@ hashmap_remove(HashMap hashmap, const void *key, size_t key_size, size_t hash)
 
 	if (node->next)
 		node->next->last = node->last;
+}
+
+/**
+ * Initializes a hashmap iterator to begin iterating
+ * @param it A pointer to the uninitialized hash map iterator structure
+ * @param hashmap The hashmap to iterate
+ */
+void hashmap_iterator_init(struct HashMapIterator *it, HashMap hashmap)
+{
+	if (!it || !hashmap)
+		return;
+	it->bucket_index = 0;
+	it->current_node = hashmap->buckets[0];
+	it->hashmap = hashmap;
+}
+
+/**
+ * Gets the next item in the iterator
+ * @param it An initialized iterator
+ * @return A pointer to the HashMapNode, or NULL if no more exist
+ */
+struct HashMapNode *hashmap_iterate(struct HashMapIterator *it)
+{
+	if (!it)
+		return NULL;
+
+	// Find the next bucket to iterate through
+	while (!it->current_node) {
+		if (it->bucket_index >= it->hashmap->num_buckets - 1)
+			return NULL;
+		it->current_node = it->hashmap->buckets[++it->bucket_index];
+	}
+
+	struct HashMapNode *element = it->current_node;
+	it->current_node = it->current_node->next;
+	return element;
 }

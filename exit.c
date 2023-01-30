@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include <SDL2/SDL.h>
 
+#include <time.h>
+
 char *error_message;
 extern SDL_Surface *g_surface;
 extern SDL_Window *g_window;
@@ -32,6 +34,11 @@ void raise_error(void)
  */
 void destroy(void)
 {
+#ifdef DEBUG
+	clock_t t;
+	t = clock();
+#endif // DEBUG
+
 	SDL_FreeSurface(g_surface);
 	g_surface = NULL;
 
@@ -43,4 +50,9 @@ void destroy(void)
 
 	render_free();
 	SDL_Quit();
+
+#ifdef DEBUG
+	t = clock() - t;
+	printf("destroy() took %lf ms\n", 1000.0 * t / CLOCKS_PER_SEC);
+#endif // DEBUG
 }

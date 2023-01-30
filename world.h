@@ -46,12 +46,14 @@ typedef struct {
 } *World;
 
 Chunk chunk_new(int64_t cx, int64_t cy);
+void chunk_free(Chunk);
 void chunk_fill(Chunk, enum BlockID);
 
 World world_new(void);
 void world_free(World);
 Chunk world_get(World, int64_t cx, int64_t cy);
 int world_put(World, Chunk);
+int world_set_block(World, int64_t x, int64_t y, enum BlockID);
 
 int world_generate_flat(World world);
 
