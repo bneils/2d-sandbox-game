@@ -7,10 +7,13 @@
 #include "exit.h"
 #include "world.h"
 #include "render.h"
+#include "entity.h"
+#include "event.h"
 
 SDL_Window *g_window;
 SDL_Surface *g_surface;
 World g_world;
+Entity g_player; // don't double-free, world_free will free this
 
 int main(void)
 {
@@ -36,6 +39,10 @@ int main(void)
 		raise_error();
 
 	world_generate_flat(g_world);
+	if (world_fill_block(g_world,
+		-16 * CHUNK_LENGTH, 0, 32 * CHUNK_LENGTH,
+		1, TILE_GRASS) < 0)
+		raise_error();
 
 	struct PlayerView player_view = {
 		.center_x = 0.0,
@@ -46,20 +53,17 @@ int main(void)
 	if (sprites_update(&player_view) < 0)
 		raise_error();
 
-	SDL_Event e;
-	bool running = true;
-
 	double t = 0;
 
-	while (running) {
-		// event managing
-		if (SDL_PollEvent(&e)) {
-			switch (e.type) {
-				case SDL_QUIT:
-					running = false;
-					break;
-			}
-		}
+	g_player = entity_new_player(0, -1);
+	if (!g_player)
+		raise_error();
+	world_put_entity(g_world, g_player);
+
+	for (;;) {
+		event_handler();
+		player_view.center_x = g_player->x;
+		player_view.center_y = g_player->y;
 
 		// stage the canvas and draw to it
 		if (SDL_FillRect(g_surface, NULL,
@@ -67,8 +71,6 @@ int main(void)
 			raise_error();
 		if (world_draw(g_world, &player_view) < 0)
 			raise_error();
-
-		player_view.center_y += 2.0 / 60.0;
 		if (SDL_UpdateWindowSurface(g_window) < 0)
 			raise_error();
 		SDL_Delay(1000 / 60);

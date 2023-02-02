@@ -4,6 +4,8 @@
 #include <math.h>
 
 #include "world.h"
+#include "entity.h"
+#include "macros.h"
 
 static size_t hash_coordinate(int64_t, int64_t);
 
@@ -47,26 +49,37 @@ World world_new(void)
 		free(world);
 		return NULL;
 	}
+	world->entitymap = hashmap_new(512);
+	if (!world->entitymap) {
+		hashmap_free(world->chunkmap);
+		free(world);
+		return NULL;
+	}
 	return world;
 }
 
 /**
- * Frees all resources allocated by world_new
+ * Frees all resources allocated by world_new and all entities and chunks stored
+ * within
  * @param world The world to destroy
  */
 void world_free(World world)
 {
 	if (!world)
 		return;
-	
+
 	// Free all chunks by iterating hash map
 	struct HashMapIterator it;
 	struct HashMapNode *entry;
 	hashmap_iterator_init(&it, world->chunkmap);
 	while ((entry = hashmap_iterate(&it)))
 		chunk_free(entry->value);
-
 	hashmap_free(world->chunkmap);
+
+	hashmap_iterator_init(&it, world->entitymap);
+	while ((entry = hashmap_iterate(&it)))
+		entity_free(entry->value);
+	hashmap_free(world->entitymap);
 }
 
 /**
@@ -76,7 +89,7 @@ void world_free(World world)
  * @param cy The chunk y-coordinate
  * @return A pointer to the Chunk structure, or NULL if it doesn't exist
  */
-Chunk world_get(World world, int64_t cx, int64_t cy)
+Chunk world_get_chunk(World world, int64_t cx, int64_t cy)
 {
 	if (!world)
 		return NULL;
@@ -97,7 +110,7 @@ Chunk world_get(World world, int64_t cx, int64_t cy)
  * @param chunk The chunk structure to insert
  * @return 0 on success and a negative value on error
  */
-int world_put(World world, Chunk chunk)
+int world_put_chunk(World world, Chunk chunk)
 {
 	if (!world || !chunk)
 		return -1;
@@ -157,7 +170,7 @@ int world_generate_flat(World world)
 			Chunk chunk = chunk_new(x, y);
 			if (!chunk)
 				return -1;
-			if (world_put(world, chunk) < 0)
+			if (world_put_chunk(world, chunk) < 0)
 				return -1;
 			chunk_fill(chunk,
 				(y == 16) ? TILE_UNBREAKABLE_ROCK : TILE_DIRT
@@ -180,17 +193,17 @@ int world_set_block(World world, int64_t x, int64_t y, enum BlockID tile)
 		return -1;
 	int64_t cx = floor(x / (double) CHUNK_LENGTH);
 	int64_t cy = floor(y / (double) CHUNK_LENGTH);
-	
-	Chunk chunk = world_get(world, cx, cy);
+
+	Chunk chunk = world_get_chunk(world, cx, cy);
 	// If the chunk doesn't exist we need to quietly create it
 	if (!chunk) {
 		chunk = chunk_new(cx, cy);
 		if (!chunk)
 			return -1;
-		if (world_put(world, chunk) < 0)
+		if (world_put_chunk(world, chunk) < 0)
 			return -1;
 	}
-	
+
 	int rx = x - cx * CHUNK_LENGTH;
 	int ry = y - cy * CHUNK_LENGTH;
 	chunk->tiles[ry][rx] = tile;
@@ -198,6 +211,44 @@ int world_set_block(World world, int64_t x, int64_t y, enum BlockID tile)
 	return 0;
 }
 
+/**
+ * Inserts an entity into the world
+ * @param world The world
+ * @param entity The entity to insert into the world
+ * @return 0 on success or a negative value on error
+ */
+int world_put_entity(World world, Entity entity)
+{
+	return hashmap_put(world->entitymap, entity->uuid, sizeof(entity->uuid),
+		entity, entity_hash(entity));
+}
+
+/**
+ * Fills a region of blocks
+ * @param world The world
+ * @param x The x-coordinate of the top-left point
+ * @param y The y-coordinate of the top-left point
+ * @param w The width of the region
+ * @param h The height of the region
+ * @param block The BlockID to fill
+ * @return 0 on success or a negative value on error
+ */
+int world_fill_block(World world, int64_t x, int64_t y, int64_t w, int64_t h,
+	enum BlockID block)
+{
+	for (int64_t i = y + h - 1; i >= y; --i) {
+		for (int64_t j = x + w - 1; j >= x; --j) {
+			if (world_set_block(world, j, i, block) < 0)
+				return -1;
+		}
+	}
+	return 0;
+}
+
+/**
+ * Releases all memory allocated for a chunk by chunk_new
+ * @param chunk The chunk to free
+ */
 void chunk_free(Chunk chunk)
 {
 	free(chunk);

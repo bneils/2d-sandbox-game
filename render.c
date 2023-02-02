@@ -5,6 +5,7 @@
 #include "render.h"
 #include "world.h"
 #include "macros.h"
+#include "hashmap.h"
 
 #define TILE_PATH(file_name) ("assets/" file_name)
 
@@ -23,8 +24,43 @@ static SDL_Surface *optimized_tile_surfaces[ARRAY_LEN(tile_surfaces)][2][2];
 extern SDL_Surface *g_surface;
 extern char *error_message;
 
-#define WORLD_TO_PIXEL(relative_tile_pos, tile_width, screen_midpoint) \
-	floor((relative_tile_pos) * (tile_width) + (screen_midpoint))
+#define WORLD_TO_PIXEL(relative_units, units_to_px, screen_midpoint) \
+	floor((relative_units) * (units_to_px) + (screen_midpoint))
+
+/**
+ * Draws an entity on the screen
+ *
+ */
+int entity_draw(Entity entity, struct PlayerView *view)
+{
+	if (!entity || !view)
+		return -1;
+
+	double hitbox_w_percent = entity->hitbox_width / view->width;
+	double hitbox_h_percent = entity->hitbox_height / entity->hitbox_width
+		* hitbox_w_percent;
+
+	SDL_Rect rect;
+	rect.x = WORLD_TO_PIXEL(entity->x - view->center_x,
+		SCREEN_WIDTH / view->width, SCREEN_WIDTH / 2.0);
+	rect.y = WORLD_TO_PIXEL(entity->y - view->center_y,
+		SCREEN_WIDTH / view->width, SCREEN_HEIGHT / 2.0);
+	rect.w = hitbox_w_percent * SCREEN_WIDTH;
+	rect.h = hitbox_h_percent * SCREEN_HEIGHT;
+
+	SDL_Surface *surface = SDL_CreateRGBSurface(0, rect.w, rect.h, 32,
+		0, 0, 0, 0);
+	if (!surface)
+		return -1;
+
+	if (SDL_FillRect(surface, NULL, SDL_MapRGB(surface->format, 0, 255, 0)) < 0)
+		return -1;
+
+	if (SDL_BlitSurface(surface, NULL, g_surface, &rect) < 0)
+		return -1;
+
+	return 0;
+}
 
 /**
  * Draws an individual chunk on the screen
@@ -37,7 +73,7 @@ static int chunk_draw(
 	struct PlayerView *view)
 {
 	// If the chunk doesn't exist, don't draw anything
-	if (!chunk)
+	if (!chunk || !view)
 		return 0;
 
 	double tile_width = SCREEN_WIDTH / view->width;
@@ -131,13 +167,27 @@ int world_draw(World world, struct PlayerView *view)
 
 	for (int64_t cy = cy1; cy <= cy2; ++cy) {
 		for (int64_t cx = cx1; cx <= cx2; ++cx) {
-			Chunk chunk = world_get(world, cx, cy);
+			Chunk chunk = world_get_chunk(world, cx, cy);
 			if (!chunk)
 				continue;
 			if (chunk_draw(chunk, view) < 0)
 				return -1;
 		}
 	}
+
+	struct HashMapIterator it;
+	struct HashMapNode *entity_entry;
+	hashmap_iterator_init(&it, world->entitymap);
+	while ((entity_entry = hashmap_iterate(&it))) {
+		Entity entity = entity_entry->value;
+		if (x1 <= entity->x && entity->x <= x2 && y1 <= entity->y &&
+			entity->y <= y2) {
+
+			if (entity_draw(entity, view) < 0)
+				return -1;
+		}
+	}
+
 	return 0;
 }
 

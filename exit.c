@@ -7,6 +7,9 @@
 
 #include <time.h>
 
+// error_message is only ever set if the source of the error wasn't SDL, or the
+// programmer (by passing invalid parameters)
+// An example: malloc failing
 char *error_message;
 extern SDL_Surface *g_surface;
 extern SDL_Window *g_window;

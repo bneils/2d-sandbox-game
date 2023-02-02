@@ -1,6 +1,7 @@
-#include "hashmap.h"
 #include <stdlib.h>
 #include <string.h>
+
+#include "hashmap.h"
 
 struct HashMap {
 	struct HashMapNode **buckets;
@@ -9,6 +10,8 @@ struct HashMap {
 
 static struct HashMapNode *hashmap_get_node(HashMap hashmap,
 	const void *key, size_t key_size, size_t hash);
+
+extern char *error_message;
 
 /**
  * Creates a new hashmap with a fixed number of buckets
@@ -19,11 +22,14 @@ static struct HashMapNode *hashmap_get_node(HashMap hashmap,
 HashMap hashmap_new(size_t num_buckets)
 {
 	HashMap hashmap = malloc(sizeof(*hashmap));
-	if (!hashmap)
+	if (!hashmap) {
+		error_message = "malloc failed";
 		return NULL;
+	}
 
 	hashmap->buckets = calloc(num_buckets, sizeof(*hashmap->buckets));
 	if (!hashmap->buckets) {
+		error_message = "malloc failed";
 		free(hashmap);
 		return NULL;
 	}
@@ -40,7 +46,7 @@ void hashmap_free(HashMap hashmap)
 {
 	if (!hashmap)
 		return;
-	
+
 	free(hashmap->buckets);
 	free(hashmap);
 }
@@ -71,8 +77,10 @@ int hashmap_put(HashMap hashmap, const void *key, size_t key_size,
 	struct HashMapNode **head_ptr =
 		&hashmap->buckets[hash % hashmap->num_buckets];
 	struct HashMapNode *node = malloc(sizeof(*node));
-	if (!node)
+	if (!node) {
+		error_message = "malloc failed";
 		return -1;
+	}
 	node->key = (void *) key;
 	node->key_size = key_size;
 	node->value = (void *) value;

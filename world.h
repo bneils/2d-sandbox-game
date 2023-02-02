@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "hashmap.h"
+#include "entity.h"
 
 // -x -> +x
 
@@ -51,10 +52,14 @@ void chunk_fill(Chunk, enum BlockID);
 
 World world_new(void);
 void world_free(World);
-Chunk world_get(World, int64_t cx, int64_t cy);
-int world_put(World, Chunk);
+Chunk world_get_chunk(World, int64_t cx, int64_t cy);
+int world_put_chunk(World, Chunk);
 int world_set_block(World, int64_t x, int64_t y, enum BlockID);
 
+int world_put_entity(World, Entity);
+
 int world_generate_flat(World world);
+int world_fill_block(World world, int64_t x, int64_t y, int64_t w, int64_t h,
+	enum BlockID block);
 
 #endif // WORLD_H
