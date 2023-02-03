@@ -29,31 +29,35 @@ extern char *error_message;
 
 /**
  * Draws an entity on the screen
- *
+ * @param entity The entity to be drawn
+ * @param view The player's view
+ * @return 0 on success and a negative value on error
  */
 int entity_draw(Entity entity, struct PlayerView *view)
 {
 	if (!entity || !view)
 		return -1;
 
-	double hitbox_w_percent = entity->hitbox_width / view->width;
-	double hitbox_h_percent = entity->hitbox_height / entity->hitbox_width
-		* hitbox_w_percent;
+	double tile_width = SCREEN_WIDTH / view->width;
+
+	int entity_width = tile_width * entity->hitbox_width;
+	int entity_height = tile_width * entity->hitbox_height;
 
 	SDL_Rect rect;
-	rect.x = WORLD_TO_PIXEL(entity->x - view->center_x,
-		SCREEN_WIDTH / view->width, SCREEN_WIDTH / 2.0);
-	rect.y = WORLD_TO_PIXEL(entity->y - view->center_y,
-		SCREEN_WIDTH / view->width, SCREEN_HEIGHT / 2.0);
-	rect.w = hitbox_w_percent * SCREEN_WIDTH;
-	rect.h = hitbox_h_percent * SCREEN_HEIGHT;
+	rect.x = WORLD_TO_PIXEL(entity->x - view->center_x, tile_width,
+		SCREEN_WIDTH / 2.0);
+	rect.y = WORLD_TO_PIXEL((entity->y - entity->hitbox_height)
+		- view->center_y, tile_width, SCREEN_HEIGHT / 2.0);
+	rect.w = entity_width;
+	rect.h = entity_height;
 
 	SDL_Surface *surface = SDL_CreateRGBSurface(0, rect.w, rect.h, 32,
 		0, 0, 0, 0);
 	if (!surface)
 		return -1;
 
-	if (SDL_FillRect(surface, NULL, SDL_MapRGB(surface->format, 0, 255, 0)) < 0)
+	if (SDL_FillRect(surface, NULL, SDL_MapRGB(surface->format, 0, 255, 0)
+		) < 0)
 		return -1;
 
 	if (SDL_BlitSurface(surface, NULL, g_surface, &rect) < 0)
@@ -180,6 +184,8 @@ int world_draw(World world, struct PlayerView *view)
 	hashmap_iterator_init(&it, world->entitymap);
 	while ((entity_entry = hashmap_iterate(&it))) {
 		Entity entity = entity_entry->value;
+		// TODO: This won't render an entity if more than half of their
+		// hitbox is out-of-frame
 		if (x1 <= entity->x && entity->x <= x2 && y1 <= entity->y &&
 			entity->y <= y2) {
 

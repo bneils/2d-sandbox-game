@@ -34,10 +34,14 @@ void event_handler(void)
 
 	int num_keys;
 	const uint8_t *keystates = SDL_GetKeyboardState(&num_keys);
+
 	if (keystates[SDL_SCANCODE_A]) {
-		g_player->x -= 0.05;
-	}
-	if (keystates[SDL_SCANCODE_D]) {
-		g_player->x += 0.05;
+		g_player->looking_dir = LOOKING_LEFT;
+		g_player->desired_velocity_x = -5.0;
+	} else if (keystates[SDL_SCANCODE_D]) {
+		g_player->looking_dir = LOOKING_RIGHT;
+		g_player->desired_velocity_x = 5.0;
+	} else {
+		g_player->desired_velocity_x = 0.0;
 	}
 }

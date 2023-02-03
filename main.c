@@ -53,15 +53,14 @@ int main(void)
 	if (sprites_update(&player_view) < 0)
 		raise_error();
 
-	double t = 0;
-
-	g_player = entity_new_player(0, -1);
+	g_player = entity_new_player(0, 0);
 	if (!g_player)
 		raise_error();
 	world_put_entity(g_world, g_player);
 
 	for (;;) {
 		event_handler();
+		entity_update_physics(g_player, 1.0 / 60);
 		player_view.center_x = g_player->x;
 		player_view.center_y = g_player->y;
 
@@ -74,7 +73,6 @@ int main(void)
 		if (SDL_UpdateWindowSurface(g_window) < 0)
 			raise_error();
 		SDL_Delay(1000 / 60);
-		t += 1.0 / 120.0;
 	}
 
 	destroy();

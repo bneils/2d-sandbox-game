@@ -1,10 +1,13 @@
-#include "entity.h"
 #include <stdlib.h>
 #include <stdint.h>
+
+#include "entity.h"
+#include "physics.h"
 
 #define PLAYER_HITBOX_WIDTH 0.5
 #define PLAYER_HITBOX_HEIGHT 2.0
 #define PLAYER_HEALTH 10.0
+#define PLAYER_WALK_SPEED 7.0
 #define COW_HITBOX_WIDTH 2.0
 #define COW_HITBOX_HEIGHT 1.0
 #define COW_HEALTH 7.5
@@ -36,8 +39,10 @@ Entity entity_new(
 	entity->health = health;
 	entity->hitbox_width = hitbox_width;
 	entity->hitbox_height = hitbox_height;
-	entity->motion_x = 0.0;
-	entity->motion_y = 0.0;
+	entity->acceleration_x = 0.0;
+	entity->desired_velocity_x = 0.0;
+	entity->velocity_x = 0.0;
+	entity->velocity_y = 0.0;
 	entity->looking_dir = LOOKING_RIGHT;
 	uuid_generate(entity->uuid);
 	return entity;
@@ -50,6 +55,27 @@ Entity entity_new(
 void entity_free(Entity entity)
 {
 	free(entity);
+}
+
+/**
+ * Changes the entity's velocity and position based on its current acceleration
+ * @param entity The entity to move
+ * @param t The amount of time to be elapsed
+ */
+void entity_update_physics(Entity entity, float t)
+{
+	if (!entity)
+		return;
+	entity->velocity_x = smooth_damp(
+		entity->velocity_x,
+		entity->desired_velocity_x,
+		&entity->acceleration_x,
+		0.1,
+		1000.0,
+		t);
+	entity->velocity_y = 0.0;
+	entity->x += entity->velocity_x * t;
+	entity->y += entity->velocity_y * t;
 }
 
 /**
