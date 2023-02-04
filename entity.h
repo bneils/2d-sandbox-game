@@ -65,5 +65,6 @@ Entity entity_new_player(double x, double y);
 void entity_free(Entity);
 void entity_update_physics(Entity, float t);
 uint32_t entity_hash(Entity);
+bool entity_is_colliding(Entity, World);
 
 #endif // ENTITY_H

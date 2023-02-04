@@ -189,26 +189,38 @@ int world_generate_flat(World world)
  */
 int world_set_block(World world, int64_t x, int64_t y, enum BlockID tile)
 {
-	if (!world)
-		return -1;
 	int64_t cx = floor(x / (double) CHUNK_LENGTH);
 	int64_t cy = floor(y / (double) CHUNK_LENGTH);
-
 	Chunk chunk = world_get_chunk(world, cx, cy);
-	// If the chunk doesn't exist we need to quietly create it
 	if (!chunk) {
-		chunk = chunk_new(cx, cy);
 		if (!chunk)
 			return -1;
 		if (world_put_chunk(world, chunk) < 0)
 			return -1;
 	}
-
 	int rx = x - cx * CHUNK_LENGTH;
 	int ry = y - cy * CHUNK_LENGTH;
 	chunk->tiles[ry][rx] = tile;
-
 	return 0;
+}
+
+/**
+ * Get the block at (x, y) in the world
+ * @param world The world
+ * @param x The x-coordinate
+ * @param y The y-coordinate
+ * @return The block ID
+ */
+enum BlockID world_get_block(World world, int64_t x, int64_t y)
+{
+	int64_t cx = floor(x / (double) CHUNK_LENGTH);
+	int64_t cy = floor(y / (double) CHUNK_LENGTH);
+	Chunk chunk = world_get_chunk(world, cx, cy);
+	if (!chunk)
+		return NULL;
+	int rx = x - cx * CHUNK_LENGTH;
+	int ry = y - cy * CHUNK_LENGTH;
+	return chunk->tiles[ry][rx];
 }
 
 /**

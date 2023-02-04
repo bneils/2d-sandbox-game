@@ -54,7 +54,9 @@ World world_new(void);
 void world_free(World);
 Chunk world_get_chunk(World, int64_t cx, int64_t cy);
 int world_put_chunk(World, Chunk);
+
 int world_set_block(World, int64_t x, int64_t y, enum BlockID);
+enum BlockID *world_get_block(World, int64_t x, int64_t y);
 
 int world_put_entity(World, Entity);
 

@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdint.h>
+#include <math.h>
 
 #include "entity.h"
 #include "physics.h"
@@ -98,6 +99,31 @@ Entity entity_new_player(double x, double y)
 			.quantity = 0,
 		};
 	return entity;
+}
+
+/**
+ * Checks if an entity is colliding with a block's hitbox
+ * @param The entity to check for collision
+ * @param The world
+ * @return Whether or not an entity is intersecting with a block hitbox
+ */
+bool entity_is_colliding(Entity entity, World world)
+{
+	if (!entity || !world)
+		return false;
+
+	int64_t x1 = floor(entity->x - entity->hitbox_x);
+	int64_t x2 = floor(entity->x + entity->hitbox_x);
+	int64_t y1 = floor(entity->y - entity->hitbox_y);
+	int64_t y2 = floor(entity->y + entity->hitbox_y);
+
+	for (int64_t y = y1; y <= y2; ++y)
+		for (int64_t x = x1; x <= x2; ++x) {
+			enum BlockID block = world_get_block(world, x, y);
+			if (block != AIR)
+				return true;
+		}
+	return false;
 }
 
 /**
