@@ -84,6 +84,7 @@ static int chunk_draw(
 			if (tile == TILE_AIR)
 				continue;
 
+			// The x and y offset from the center
 			double rx = chunk->cx * CHUNK_LENGTH + j - view->center_x;
 			double ry = chunk->cy * CHUNK_LENGTH + i - view->center_y;
 
@@ -93,7 +94,10 @@ static int chunk_draw(
 			int var_tile_width =
 				SCREEN_WIDTH / 2.0 + (rx + 1) * tile_width - px;
 			int var_tile_height =
-				py - (SCREEN_HEIGHT / 2.0 - (ry + 1) * tile_width);
+				py - (int) (SCREEN_HEIGHT / 2.0 - (ry + 1.0) * tile_width);
+
+			// Needs to be done since SDL draws from the top-left.
+			py -= var_tile_height;
 
 			SDL_Rect rect = {
 				.x = px,
