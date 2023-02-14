@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include "hashmap.h"
+#include "globals.h"
 
 struct HashMap {
 	struct HashMapNode **buckets;
@@ -10,8 +11,6 @@ struct HashMap {
 
 static struct HashMapNode *hashmap_get_node(HashMap hashmap,
 	const void *key, size_t key_size, size_t hash);
-
-extern char *error_message;
 
 /**
  * Creates a new hashmap with a fixed number of buckets
@@ -23,13 +22,13 @@ HashMap hashmap_new(size_t num_buckets)
 {
 	HashMap hashmap = malloc(sizeof(*hashmap));
 	if (!hashmap) {
-		error_message = "malloc failed";
+		g_error_message = "malloc failed";
 		return NULL;
 	}
 
 	hashmap->buckets = calloc(num_buckets, sizeof(*hashmap->buckets));
 	if (!hashmap->buckets) {
-		error_message = "malloc failed";
+		g_error_message = "malloc failed";
 		free(hashmap);
 		return NULL;
 	}
@@ -78,7 +77,7 @@ int hashmap_put(HashMap hashmap, const void *key, size_t key_size,
 		&hashmap->buckets[hash % hashmap->num_buckets];
 	struct HashMapNode *node = malloc(sizeof(*node));
 	if (!node) {
-		error_message = "malloc failed";
+		g_error_message = "malloc failed";
 		return -1;
 	}
 	node->key = (void *) key;
@@ -173,11 +172,11 @@ hashmap_remove(HashMap hashmap, const void *key, size_t key_size, size_t hash)
  */
 void hashmap_iterator_init(struct HashMapIterator *it, HashMap hashmap)
 {
-	if (!it || !hashmap)
+	if (!it)
 		return;
 	it->bucket_index = 0;
-	it->current_node = hashmap->buckets[0];
 	it->hashmap = hashmap;
+	it->current_node = (hashmap) ? hashmap->buckets[0] : NULL;
 }
 
 /**
@@ -187,7 +186,7 @@ void hashmap_iterator_init(struct HashMapIterator *it, HashMap hashmap)
  */
 struct HashMapNode *hashmap_iterate(struct HashMapIterator *it)
 {
-	if (!it)
+	if (!it || !it->hashmap)
 		return NULL;
 
 	// Find the next bucket to iterate through
@@ -198,6 +197,8 @@ struct HashMapNode *hashmap_iterate(struct HashMapIterator *it)
 	}
 
 	struct HashMapNode *element = it->current_node;
+	if (!element)
+		return NULL;
 	it->current_node = it->current_node->next;
 	return element;
 }

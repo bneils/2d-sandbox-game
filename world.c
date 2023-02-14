@@ -6,19 +6,7 @@
 #include "world.h"
 #include "entity.h"
 #include "macros.h"
-
-static size_t hash_coordinate(int64_t, int64_t);
-
-struct BlockProperty block_properties[NUM_TILES] = {
-	{ .break_time_sec = 1.0, .has_collision = true }, // DIRT
-	{ .break_time_sec = 1.0, .has_collision = true }, // GRASS
-	{ .break_time_sec = INFINITY, .has_collision = false }, // AIR
-	{ .break_time_sec = 5.0, .has_collision = false }, // LOG
-	// UNBREAKABLE_ROCK
-	{ .break_time_sec = INFINITY, .has_collision = true },
-};
-
-extern char *error_message;
+#include "globals.h"
 
 /**
  * Hashes a pair of numbers using the Elegant Pairing function
@@ -27,7 +15,7 @@ extern char *error_message;
  * @param y The y coordinate
  * @return The hashed value
  */
-static size_t hash_coordinate(int64_t x, int64_t y)
+size_t hash_coordinate(int64_t x, int64_t y)
 {
 	uint64_t ux = x;
 	uint64_t uy = y;
@@ -131,7 +119,7 @@ Chunk chunk_new(int64_t cx, int64_t cy)
 {
 	Chunk chunk = malloc(sizeof(*chunk));
 	if (!chunk) {
-		error_message = "malloc failed";
+		g_error_message = "malloc failed";
 		return NULL;
 	}
 
@@ -165,17 +153,21 @@ void chunk_fill(Chunk chunk, enum BlockID tile)
  */
 int world_generate_flat(World world)
 {
-	for (int y = 0; y <= 16; ++y)
-		for (int x = -16; x <= 16; ++x) {
-			Chunk chunk = chunk_new(x, y);
-			if (!chunk)
-				return -1;
-			if (world_put_chunk(world, chunk) < 0)
-				return -1;
-			chunk_fill(chunk,
-				(y == 16) ? TILE_UNBREAKABLE_ROCK : TILE_DIRT
-			);
-		}
+	if (!world)
+		return -1;
+
+	const int x1 = -16 * CHUNK_LENGTH;
+	const int x2 = -x1;
+	const int y1 = -16 * CHUNK_LENGTH;
+	const int y2 = 0;
+
+	if (world_fill_block(world, x1, y1, x2, y2, TILE_DIRT) < 0)
+		return -1;
+	if (world_fill_block(world, x1, y2, x2, y2, TILE_GRASS) < 0)
+		return -1;
+	if (world_fill_block(world, x1, y1, x2, y1, TILE_UNBREAKABLE_ROCK) < 0)
+		return -1;
+
 	return 0;
 }
 
@@ -193,6 +185,7 @@ int world_set_block(World world, int64_t x, int64_t y, enum BlockID tile)
 	int64_t cy = floor(y / (double) CHUNK_LENGTH);
 	Chunk chunk = world_get_chunk(world, cx, cy);
 	if (!chunk) {
+		chunk = chunk_new(cx, cy);
 		if (!chunk)
 			return -1;
 		if (world_put_chunk(world, chunk) < 0)
@@ -209,7 +202,7 @@ int world_set_block(World world, int64_t x, int64_t y, enum BlockID tile)
  * @param world The world
  * @param x The x-coordinate
  * @param y The y-coordinate
- * @return The block ID
+ * @return The block ID, or an air block if the chunk doesn't exist
  */
 enum BlockID world_get_block(World world, int64_t x, int64_t y)
 {
@@ -217,7 +210,7 @@ enum BlockID world_get_block(World world, int64_t x, int64_t y)
 	int64_t cy = floor(y / (double) CHUNK_LENGTH);
 	Chunk chunk = world_get_chunk(world, cx, cy);
 	if (!chunk)
-		return NULL;
+		return TILE_AIR;
 	int rx = x - cx * CHUNK_LENGTH;
 	int ry = y - cy * CHUNK_LENGTH;
 	return chunk->tiles[ry][rx];
@@ -245,15 +238,16 @@ int world_put_entity(World world, Entity entity)
  * @param block The BlockID to fill
  * @return 0 on success or a negative value on error
  */
-int world_fill_block(World world, int64_t x, int64_t y, int64_t w, int64_t h,
+int world_fill_block(World world, int64_t x1, int64_t y1, int64_t x2, int64_t y2,
 	enum BlockID block)
 {
-	for (int64_t i = y + h - 1; i >= y; --i) {
-		for (int64_t j = x + w - 1; j >= x; --j) {
-			if (world_set_block(world, j, i, block) < 0)
+	for (int64_t y = y1; y <= y2; ++y) {
+		for (int64_t x = x1; x <= x2; ++x) {
+			if (world_set_block(world, x, y, block) < 0)
 				return -1;
 		}
 	}
+
 	return 0;
 }
 
@@ -265,3 +259,5 @@ void chunk_free(Chunk chunk)
 {
 	free(chunk);
 }
+
+

@@ -1,31 +1,23 @@
 #include <SDL2/SDL.h>
 #include <math.h>
 #include <string.h>
-
 #include "render.h"
 #include "world.h"
 #include "macros.h"
 #include "hashmap.h"
-
-#define TILE_PATH(file_name) ("assets/" file_name)
+#include "globals.h"
 
 // These must be ordered respective to the BlockID enum in world.h
 static const char *tile_filenames[NUM_TILES] = {
-	TILE_PATH("dirt.bmp"),
-	TILE_PATH("grass.bmp"),
-	NULL, // AIR
-	TILE_PATH("log.bmp"),
-	TILE_PATH("unbreakable_rock.bmp"),
+	"assets/dirt.bmp",
+	"assets/grass.bmp",
+	NULL,
+	"assets/log.bmp",
+	"assets/unbreakable_rock.bmp",
 };
 
-static SDL_Surface *tile_surfaces[ARRAY_LEN(tile_filenames)];
-static SDL_Surface *optimized_tile_surfaces[ARRAY_LEN(tile_surfaces)][2][2];
-
-extern SDL_Surface *g_surface;
-extern char *error_message;
-
-#define WORLD_TO_PIXEL(relative_units, units_to_px, screen_midpoint) \
-	floor((relative_units) * (units_to_px) + (screen_midpoint))
+static SDL_Surface *block_textures[ARRAY_LEN(tile_filenames)];
+static HashMap scaled_block_textures[ARRAY_LEN(tile_filenames)];
 
 /**
  * Draws an entity on the screen
@@ -44,10 +36,13 @@ int entity_draw(Entity entity, struct PlayerView *view)
 	int entity_height = tile_width * entity->hitbox_height;
 
 	SDL_Rect rect;
-	rect.x = WORLD_TO_PIXEL(entity->x - view->center_x, tile_width,
-		SCREEN_WIDTH / 2.0);
-	rect.y = WORLD_TO_PIXEL((entity->y - entity->hitbox_height)
-		- view->center_y, tile_width, SCREEN_HEIGHT / 2.0);
+	rect.x = SCREEN_WIDTH / 2.0
+		+ (entity->x - entity->hitbox_width / 2.0 - view->center_x)
+		* tile_width;
+	rect.y = SCREEN_HEIGHT / 2.0
+		- (entity->y + entity->hitbox_height - view->center_y)
+		* tile_width;
+
 	rect.w = entity_width;
 	rect.h = entity_height;
 
@@ -86,51 +81,40 @@ static int chunk_draw(
 		for (int j = 0; j < CHUNK_LENGTH; ++j) {
 			enum BlockID tile = chunk->tiles[i][j];
 
-			// This first determines a tile's coordinate relative
-			// to the visual center, then turns that into an offset
-			// from the screen center
-			int64_t px = WORLD_TO_PIXEL(
-				chunk->cx * CHUNK_LENGTH + j - view->center_x,
-				tile_width, SCREEN_WIDTH / 2.0);
-			int64_t py = WORLD_TO_PIXEL(
-				chunk->cy * CHUNK_LENGTH + i - view->center_y,
-				tile_width, SCREEN_HEIGHT / 2.0);
+			if (tile == TILE_AIR)
+				continue;
 
-			int64_t varied_tile_width = WORLD_TO_PIXEL(
-				chunk->cx * CHUNK_LENGTH + j + 1 - view->center_x,
-				tile_width, SCREEN_WIDTH / 2.0) - px;
-			int64_t varied_tile_height = WORLD_TO_PIXEL(
-				chunk->cy * CHUNK_LENGTH + i + 1 - view->center_y,
-				tile_width, SCREEN_HEIGHT / 2.0) - py;
+			double rx = chunk->cx * CHUNK_LENGTH + j - view->center_x;
+			double ry = chunk->cy * CHUNK_LENGTH + i - view->center_y;
+
+			int64_t px = SCREEN_WIDTH / 2.0 + rx * tile_width;
+			int64_t py = SCREEN_HEIGHT / 2.0 - ry * tile_width;
+
+			int var_tile_width =
+				SCREEN_WIDTH / 2.0 + (rx + 1) * tile_width - px;
+			int var_tile_height =
+				py - (SCREEN_HEIGHT / 2.0 - (ry + 1) * tile_width);
 
 			SDL_Rect rect = {
 				.x = px,
 				.y = py,
-				.w = varied_tile_width,
-				.h = varied_tile_height,
+				.w = var_tile_width,
+				.h = var_tile_height,
 			};
 
-			// how much extra this sprite needs to fill in, besides
-			// the average
-			int extra_y = varied_tile_height - (int64_t) tile_width;
-			int extra_x = varied_tile_width - (int64_t) tile_width;
+			int key[] = {var_tile_width, var_tile_height};
+			size_t hash = hash_coordinate(var_tile_width,
+				var_tile_height);
+			SDL_Surface **surface = (SDL_Surface **) hashmap_get(scaled_block_textures[tile],
+				key, sizeof key, hash);
 
-			// Out of bounds
-			if (extra_y < 0 || extra_y > 1 || extra_x < 0
-				|| extra_x > 1) {
-				error_message = "drawn tile has wrong size";
+			if (!surface) {
+				g_error_message = "scaled block texture not"
+					" found in cache";
 				return -1;
 			}
 
-			SDL_Surface *tile_surface =
-				optimized_tile_surfaces[tile][extra_y][extra_x];
-
-			// Texture not found, maybe sprites_update or
-			// render_init wasn't called or this block has no image
-			if (!tile_surface)
-				continue;
-
-			if (SDL_BlitSurface(tile_surface, NULL, g_surface,
+			if (SDL_BlitSurface(*surface, NULL, g_surface,
 				&rect) < 0)
 				return -1;
 		}
@@ -146,11 +130,11 @@ static int chunk_draw(
  */
 int world_draw(World world, struct PlayerView *view)
 {
-	// (x1, y1) ---------------+ x2 > x1
+	// (x1, y2) ---------------+ x2 > x1
 	// |                       | y2 > y1
 	// |   What the user can   |
 	// |          see          |
-	// +----------------(x2, y2)
+	// +----------------(x2, y1)
 
 	if (!world || !view)
 		return -1;
@@ -209,7 +193,8 @@ int render_init(void)
 		SDL_Surface *surface = SDL_LoadBMP(tile_filenames[i]);
 		if (!surface)
 			return -1;
-		tile_surfaces[i] = surface;
+		block_textures[i] = surface;
+		scaled_block_textures[i] = hashmap_new(8);
 	}
 	return 0;
 }
@@ -219,16 +204,19 @@ int render_init(void)
  */
 void render_free(void)
 {
-	for (size_t i = 0; i < ARRAY_LEN(tile_surfaces); ++i) {
-		SDL_FreeSurface(tile_surfaces[i]);
-		SDL_FreeSurface(optimized_tile_surfaces[i][0][0]);
-		SDL_FreeSurface(optimized_tile_surfaces[i][1][0]);
-		SDL_FreeSurface(optimized_tile_surfaces[i][0][1]);
-		SDL_FreeSurface(optimized_tile_surfaces[i][1][1]);
+	for (size_t i = 0; i < ARRAY_LEN(block_textures); ++i) {
+		SDL_FreeSurface(block_textures[i]);
+
+		struct HashMapNode *node;
+		struct HashMapIterator it;
+		hashmap_iterator_init(&it, scaled_block_textures[i]);
+		while ((node = hashmap_iterate(&it)))
+			SDL_FreeSurface(node->value);
+		hashmap_free(scaled_block_textures[i]);
 	}
 
-	memset(tile_surfaces, 0, sizeof(tile_surfaces));
-	memset(optimized_tile_surfaces, 0, sizeof(optimized_tile_surfaces));
+	memset(block_textures, 0, sizeof(block_textures));
+	memset(scaled_block_textures, 0, sizeof(scaled_block_textures));
 }
 
 /**
@@ -242,41 +230,56 @@ int sprites_update(struct PlayerView *view)
 	if (!view)
 		return -1;
 
-	int sprite_width = ceil(SCREEN_WIDTH / view->width);
-	for (size_t i = 0; i < ARRAY_LEN(optimized_tile_surfaces); ++i) {
-		if (!tile_surfaces[i])
+	int sprite_width = floor(SCREEN_WIDTH / view->width);
+	for (size_t i = 0; i < ARRAY_LEN(block_textures); ++i) {
+		// This means that either the block doesn't have a texture to
+		// begin with, or render_init was never called
+		if (!block_textures[i])
 			continue;
-		for (int y = 0; y <= 1; ++y)
-			for (int x = 0; x <= 1; ++x) {
-				// Unify the pixel format
-				SDL_Surface *optimized_surface =
+
+		for (int h = sprite_width - 1; h <= sprite_width + 1; ++h)
+			for (int w = sprite_width - 1; w <= sprite_width + 1; ++w) {
+				// The image's pixel format changes, then it's
+				// scaled
+				SDL_Surface *formatted_surface =
 					SDL_ConvertSurface(
-						tile_surfaces[i],
+						block_textures[i],
 						g_surface->format,
 						0);
-				if (!optimized_surface)
+				if (!formatted_surface)
 					return -1;
-				// Then scale it
+
 				SDL_Surface *scaled_surface =
 					SDL_CreateRGBSurface(
-						0, sprite_width + x,
-						sprite_width + y,
-						optimized_surface->format->
+						0, w, h,
+						formatted_surface->format->
 							BitsPerPixel,
-						optimized_surface->format->Rmask,
-						optimized_surface->format->Gmask,
-						optimized_surface->format->Bmask,
-						optimized_surface->format->Amask
+						formatted_surface->format->Rmask,
+						formatted_surface->format->Gmask,
+						formatted_surface->format->Bmask,
+						formatted_surface->format->Amask
 					);
 
-				if (!scaled_surface)
+				if (!scaled_surface) {
+					SDL_FreeSurface(formatted_surface);
 					return -1;
-				optimized_tile_surfaces[i][y][x]
-					= scaled_surface;
-				if (SDL_BlitScaled(optimized_surface, NULL,
+				}
+
+				if (SDL_BlitScaled(formatted_surface, NULL,
 					scaled_surface, NULL) < 0)
 					return -1;
-				SDL_FreeSurface(optimized_surface);
+
+				SDL_FreeSurface(formatted_surface);
+
+				size_t hash = hash_coordinate(w, h);
+				// Using the address of w is a hack to skip a
+				// dynamic allocation here. Put simply, &w is
+				// right before &h, so the next int*2 bytes will
+				// contain the dimensions of the surface.
+				if (hashmap_put(scaled_block_textures[i],
+					&scaled_surface->w, sizeof(int) * 2,
+					scaled_surface, hash) < 0)
+					return -1;
 			}
 	}
 

@@ -9,11 +9,8 @@
 #include "render.h"
 #include "entity.h"
 #include "event.h"
-
-SDL_Window *g_window;
-SDL_Surface *g_surface;
-World g_world;
-Entity g_player; // don't double-free, world_free will free this
+#include "physics.h"
+#include "globals.h"
 
 int main(void)
 {
@@ -38,10 +35,7 @@ int main(void)
 	if (!g_world)
 		raise_error();
 
-	world_generate_flat(g_world);
-	if (world_fill_block(g_world,
-		-16 * CHUNK_LENGTH, 0, 32 * CHUNK_LENGTH,
-		1, TILE_GRASS) < 0)
+	if (world_generate_flat(g_world) < 0)
 		raise_error();
 
 	struct PlayerView player_view = {
@@ -60,7 +54,7 @@ int main(void)
 
 	for (;;) {
 		event_handler();
-		entity_update_physics(g_player, 1.0 / 60);
+		entity_update_physics(g_player, g_world, 1.0 / 60);
 		player_view.center_x = g_player->x;
 		player_view.center_y = g_player->y;
 

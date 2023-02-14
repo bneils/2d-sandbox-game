@@ -1,19 +1,11 @@
 #include "exit.h"
 #include "render.h"
 #include "world.h"
+#include "globals.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <SDL2/SDL.h>
-
 #include <time.h>
-
-// error_message is only ever set if the source of the error wasn't SDL, or the
-// programmer (by passing invalid parameters)
-// An example: malloc failing
-char *error_message;
-extern SDL_Surface *g_surface;
-extern SDL_Window *g_window;
-extern World g_world;
 
 /**
  * Raises an error created by SDL or another function and prints an error
@@ -22,10 +14,10 @@ void raise_error(void)
 {
 	const char *sdl_err_msg = SDL_GetError();
 
-	if (sdl_err_msg)
+	if (sdl_err_msg && sdl_err_msg[0] != '\0')
 		fprintf(stderr, "SDL error: %s\n", sdl_err_msg);
 	else
-		fprintf(stderr, "Error: %s\n", error_message);
+		fprintf(stderr, "Error: %s\n", g_error_message);
 	// This function has external responsibilities such as freeing resources
 	// and shutting SDL down
 	destroy();

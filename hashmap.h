@@ -2,6 +2,7 @@
 #define HASHMAP_H
 
 #include <stddef.h>
+#include <stdint.h>
 
 struct HashMapNode {
 	void *key;
@@ -28,5 +29,7 @@ void hashmap_remove(HashMap, const void *key, size_t key_size, size_t hash);
 
 void hashmap_iterator_init(struct HashMapIterator *, HashMap);
 struct HashMapNode *hashmap_iterate(struct HashMapIterator *);
+
+uint32_t SuperFastHash (const char * data, int len);
 
 #endif // HASHMAP_H

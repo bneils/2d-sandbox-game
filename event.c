@@ -44,4 +44,8 @@ void event_handler(void)
 	} else {
 		g_player->desired_velocity_x = 0.0;
 	}
+
+	if (g_player->on_ground && keystates[SDL_SCANCODE_SPACE]) {
+		g_player->velocity_y = 5.0;
+	}
 }
