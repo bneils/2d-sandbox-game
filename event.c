@@ -2,9 +2,8 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
-
-#include "event.h"
 #include "exit.h"
+#include "event.h"
 #include "entity.h"
 
 extern Entity g_player;
@@ -45,7 +44,8 @@ void event_handler(void)
 		g_player->desired_velocity_x = 0.0;
 	}
 
-	if (g_player->on_ground && keystates[SDL_SCANCODE_SPACE]) {
+	//if (g_player->on_ground && keystates[SDL_SCANCODE_SPACE]) {
+	if (keystates[SDL_SCANCODE_SPACE]) {
 		g_player->velocity_y = 5.0;
 	}
 }

@@ -159,7 +159,7 @@ int world_generate_flat(World world)
 	const int x1 = -16 * CHUNK_LENGTH;
 	const int x2 = -x1;
 	const int y1 = -16 * CHUNK_LENGTH;
-	const int y2 = 0;
+	const int y2 = -1;
 
 	if (world_fill_block(world, x1, y1, x2, y2, TILE_DIRT) < 0)
 		return -1;
